@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101018">
+  <title>SongDive — Daily Seven</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="SongDive home"><span class="brand-mark">♫</span><span>SongDive</span></a>
+      <span class="mode-pill">DAILY SEVEN</span>
+    </header>
+
+    <section class="hero" id="intro">
+      <div class="eyebrow"><span class="pulse"></span> YOUR DAILY MUSIC CHALLENGE</div>
+      <h1>Go beyond<br><span>the obvious.</span></h1>
+      <p class="hero-copy">Seven prompts. Seven songs. Find the answers other players might overlook.</p>
+      <div class="rules">
+        <div><strong>7</strong><span>rounds</span></div>
+        <div><strong>20s</strong><span>per round</span></div>
+        <div><strong>630</strong><span>max points</span></div>
+      </div>
+      <button class="primary-btn" id="startBtn">Play today's game <span>→</span></button>
+      <p class="fine-print">Prototype mode: answers are checked against a small sample library.</p>
+    </section>
+
+    <section class="game hidden" id="game" aria-live="polite">
+      <div class="game-meta"><span id="roundLabel">ROUND 1 OF 7</span><span class="timer"><span class="timer-dot"></span><span id="timer">20</span>s</span></div>
+      <div class="progress-track"><div id="progressBar"></div></div>
+      <p class="prompt-label">YOUR PROMPT</p>
+      <h2 id="promptText">Name a song with a color in its title.</h2>
+      <p class="hint" id="hintText">Choose a song from the suggestions.</p>
+      <label class="search-label" for="songSearch">Song or artist</label>
+      <input id="songSearch" type="text" autocomplete="off" placeholder="Try “Purple Rain”..." />
+      <div class="suggestions" id="suggestions"></div>
+      <div class="selected-song hidden" id="selectedSong"></div>
+      <button class="primary-btn submit-btn" id="submitBtn" disabled>Lock in answer <span>→</span></button>
+      <p class="fine-print">The current sample library is for testing; rarity scores are illustrative.</p>
+    </section>
+
+    <section class="result hidden" id="result" aria-live="polite">
+      <div class="result-icon" id="resultIcon">♫</div>
+      <p class="eyebrow" id="resultEyebrow">ANSWER LOCKED IN</p>
+      <h2 id="resultTitle">Purple Rain</h2>
+      <p class="result-artist" id="resultArtist">Prince</p>
+      <div class="score-card">
+        <span id="tierLabel">RARE</span>
+        <strong><span id="points">65</span><small> pts</small></strong>
+        <p id="resultMessage">A great deep cut.</p>
+      </div>
+      <button class="primary-btn" id="continueBtn">Next round <span>→</span></button>
+    </section>
+
+    <section class="final hidden" id="final" aria-live="polite">
+      <div class="eyebrow">CHALLENGE COMPLETE</div>
+      <h1>Your score is<br><span id="finalScore">0</span><span class="out-of"> / 630</span></h1>
+      <p id="finalMessage">Nice work. Ready for another round?</p>
+      <div class="final-list" id="finalList"></div>
+      <button class="primary-btn" id="shareBtn">Share your score <span>↗</span></button>
+      <button class="secondary-btn" id="restartBtn">Play again</button>
+    </section>
+
+    <footer><span>SONGDIVE</span><span>Find the song less people think of.</span></footer>
+  </main>
+  <script src="script.js"></script>
+</body>
+</html>
