@@ -1,0 +1,87 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+:root {
+  color-scheme: dark;
+  --bg: #101018;
+  --panel: #191923;
+  --panel-2: #20202d;
+  --text: #f7f5ff;
+  --muted: #a4a1b7;
+  --line: rgba(255,255,255,.11);
+  --accent: #b7ff6a;
+  --purple: #a99bff;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; min-height: 100vh; background:
+    radial-gradient(ellipse at 50% -20%, rgba(131,103,255,.19), transparent 55%),
+    var(--bg);
+  color: var(--text); font-family: 'DM Sans', system-ui, sans-serif;
+}
+button, input { font: inherit; }
+.app { width: min(100% - 32px, 720px); margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+.topbar { height: 78px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line); }
+.brand { color:var(--text); display:flex; gap:10px; align-items:center; font-weight:700; font-size:20px; text-decoration:none; letter-spacing:-.7px; }
+.brand-mark { width:34px; height:34px; border-radius:11px; display:grid; place-items:center; background:var(--accent); color:#171b12; font-size:25px; }
+.mode-pill { font-size:10px; letter-spacing:1.5px; color:var(--muted); border:1px solid var(--line); padding:8px 11px; border-radius:99px; }
+.hero, .game, .result, .final { padding: clamp(35px, 8vw, 68px) 0 48px; flex:1; }
+.eyebrow { font-size:11px; font-weight:700; letter-spacing:1.8px; color:var(--muted); display:flex; align-items:center; gap:9px; }
+.pulse, .timer-dot { width:7px; height:7px; display:inline-block; border-radius:50%; background:var(--accent); box-shadow:0 0 14px rgba(183,255,106,.7); }
+h1, h2 { font-family:'Space Grotesk', sans-serif; letter-spacing:-2.6px; }
+h1 { font-size:clamp(48px, 10vw, 78px); line-height:.99; margin:25px 0 20px; }
+h1 span { color:var(--accent); }
+.hero-copy { max-width:470px; color:var(--muted); font-size:17px; line-height:1.65; }
+.rules { display:flex; gap:0; margin:36px 0; padding:20px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+.rules div { flex:1; display:flex; flex-direction:column; gap:5px; border-right:1px solid var(--line); padding-left:18px; }
+.rules div:first-child { padding-left:0; }
+.rules div:last-child { border:0; }
+.rules strong { font:600 26px 'Space Grotesk',sans-serif; }
+.rules span { color:var(--muted); font-size:12px; }
+.primary-btn, .secondary-btn { border:0; border-radius:12px; padding:16px 20px; cursor:pointer; font-weight:700; transition:transform .15s, opacity .15s; }
+.primary-btn { background:var(--accent); color:#171b12; display:flex; justify-content:space-between; align-items:center; gap:32px; min-width:220px; box-shadow:0 8px 35px rgba(183,255,106,.08); }
+.primary-btn:hover, .secondary-btn:hover { transform:translateY(-2px); }
+.primary-btn:disabled { opacity:.35; cursor:not-allowed; transform:none; }
+.primary-btn span { font-size:20px; }
+.secondary-btn { background:transparent; color:var(--text); border:1px solid var(--line); margin-top:10px; width:100%; }
+.fine-print { color:#77758b; font-size:11px; line-height:1.6; margin-top:22px; }
+.hidden { display:none !important; }
+.game-meta { display:flex; justify-content:space-between; align-items:center; font-size:11px; letter-spacing:1.5px; font-weight:700; color:var(--muted); }
+.timer { color:var(--text); font-size:16px; letter-spacing:0; display:flex; align-items:center; gap:8px; }
+.progress-track { height:4px; border-radius:9px; background:var(--panel-2); overflow:hidden; margin:17px 0 38px; }
+#progressBar { width:14.285%; height:100%; background:var(--accent); transition:width .25s; }
+.prompt-label { font-size:10px; letter-spacing:1.8px; font-weight:700; color:var(--purple); }
+.game h2, .result h2 { font-size:clamp(30px, 7vw, 44px); line-height:1.1; margin:12px 0; }
+.hint { color:var(--muted); margin-bottom:28px; }
+.search-label { display:block; font-size:12px; color:var(--muted); margin-bottom:9px; }
+#songSearch { width:100%; background:var(--panel); color:var(--text); border:1px solid var(--line); outline:none; border-radius:12px; padding:16px; }
+#songSearch:focus { border-color:var(--purple); }
+.suggestions { margin-top:8px; display:flex; flex-direction:column; gap:6px; }
+.suggestion { width:100%; display:flex; justify-content:space-between; text-align:left; align-items:center; padding:12px 14px; color:var(--text); background:var(--panel); border:1px solid transparent; border-radius:10px; cursor:pointer; }
+.suggestion:hover, .suggestion.selected { border-color:var(--purple); background:#242333; }
+.suggestion small { color:var(--muted); }
+.selected-song { margin-top:14px; border:1px solid rgba(183,255,106,.35); background:rgba(183,255,106,.06); padding:13px 15px; border-radius:10px; }
+.submit-btn { width:100%; margin-top:20px; }
+.result { text-align:center; }
+.result-icon { width:70px; height:70px; display:grid; place-items:center; border-radius:24px; background:rgba(183,255,106,.12); color:var(--accent); font-size:36px; margin:0 auto 24px; }
+.result .eyebrow { justify-content:center; }
+.result h2 { margin-top:20px; }
+.result-artist { color:var(--muted); margin-top:0; }
+.score-card { margin:32px auto; max-width:360px; border:1px solid var(--line); background:var(--panel); border-radius:18px; padding:25px; }
+.score-card > span { color:var(--accent); font-size:10px; font-weight:700; letter-spacing:1.8px; }
+.score-card strong { display:block; font:700 58px 'Space Grotesk',sans-serif; margin:7px 0; }
+.score-card small { font:500 15px 'DM Sans',sans-serif; color:var(--muted); }
+.score-card p { color:var(--muted); font-size:13px; margin-bottom:0; }
+.result .primary-btn { margin:0 auto; }
+.final h1 { font-size:clamp(44px, 10vw, 68px); }
+.out-of { font-size:20px; color:var(--muted); letter-spacing:0; }
+.final > p { color:var(--muted); }
+.final-list { margin:28px 0; border-top:1px solid var(--line); }
+.final-row { display:flex; justify-content:space-between; gap:16px; padding:14px 0; border-bottom:1px solid var(--line); align-items:center; }
+.final-row div { min-width:0; }
+.final-row strong { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; }
+.final-row small { color:var(--muted); }
+.final-row b { color:var(--accent); white-space:nowrap; }
+.final .primary-btn { width:100%; }
+footer { border-top:1px solid var(--line); padding:22px 0; display:flex; justify-content:space-between; gap:15px; color:#77758b; font-size:10px; letter-spacing:1px; }
+footer span:last-child { letter-spacing:0; text-align:right; }
+@media (max-width:480px) { .app { width:calc(100% - 28px); } .topbar { height:66px; } .hero-copy { font-size:15px; } .rules div { padding-left:12px; } .rules strong { font-size:23px; } }
