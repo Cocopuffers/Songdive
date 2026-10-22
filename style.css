@@ -62,3 +62,21 @@ body.celebrate-headliner .vinyl{filter:drop-shadow(0 0 40px #ffd768)}
 @keyframes reveal-halo{0%{transform:scale(.2);opacity:0}20%{transform:scale(1.15);opacity:1}100%{transform:scale(1.7);opacity:0}}
 @keyframes reveal-score{0%{transform:scale(2);opacity:0}20%{transform:scale(1);opacity:1}60%{transform:scale(1);opacity:1}100%{transform:scale(.32) translateY(150px);opacity:0}}
 @media(prefers-reduced-motion:reduce){.fx-piece,.celebration:before,.celebration:after,.reveal-overlay,.reveal-halo,.reveal-content{animation:none!important;display:none!important}.wave,.vinyl{transition:none!important}}
+
+/* SongDive 2.3 — full-viewport ripples, slow atmospheric recovery, round countdown. */
+.countdown-overlay{position:fixed;inset:0;z-index:30;display:grid;place-items:center;pointer-events:none;background:radial-gradient(circle at 50% 50%,#39245edb,#090617f5 75%);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.countdown-inner{display:flex;align-items:center;flex-direction:column;gap:12px;text-align:center;color:white}.countdown-inner span{font:800 clamp(25px,7vw,60px) 'Space Grotesk',sans-serif;letter-spacing:.08em;background:linear-gradient(90deg,#baff77,#85e8ff,#ff8fd5);color:transparent;background-clip:text}.countdown-inner strong{font:900 clamp(110px,28vw,230px) 'Space Grotesk',sans-serif;line-height:1;color:#fff;text-shadow:0 0 45px #b997ff}.countdown-inner small{font-weight:800;letter-spacing:.2em;color:#cfc2ea}.count-pop{animation:count-pop .78s cubic-bezier(.18,.8,.2,1) both}@keyframes count-pop{from{opacity:0;transform:scale(.48) translateY(30px)}35%{opacity:1}to{opacity:1;transform:scale(1)}}
+.prompt-emerge{animation:prompt-emerge 1.2s cubic-bezier(.18,.85,.2,1) both;transform-origin:center center}@keyframes prompt-emerge{from{opacity:0;transform:scale(.65) translateY(22px);filter:blur(12px)}to{opacity:1;transform:scale(1) translateY(0);filter:blur(0)}}
+/* Force the rare ring to travel beyond viewport edges, not remain a purple orb. */
+.effect-rare:after,.effect-headliner:after{width:24vmin;height:24vmin;box-sizing:border-box;will-change:transform}
+.effect-rare:after{animation:fx-ripple-wide 6.7s cubic-bezier(.12,.55,.23,1) both;border-width:5px;box-shadow:0 0 90px 14px #ac8aff,0 0 180px 50px #7432ff77}
+.effect-headliner:after{animation:fx-ripple-wide 8.2s cubic-bezier(.12,.55,.23,1) both;border-width:10px;box-shadow:0 0 110px 30px #ffe07a,0 0 230px 65px #ffa82799}
+@keyframes fx-ripple-wide{0%{opacity:0;transform:translate(-50%,-50%) scale(.08)}9%{opacity:1}35%{opacity:.92}65%{opacity:.55}100%{opacity:0;transform:translate(-50%,-50%) scale(17)}}
+.effect-rare:before{background:radial-gradient(circle at 50% 48%,#9b65ff77 0%,#7033db3d 24%,transparent 72%);animation-duration:6.7s}
+.effect-headliner:before{background:radial-gradient(circle at 50% 48%,#fff9d9 0%,#ffcb5888 15%,#e58b3d38 45%,transparent 75%);animation-duration:8.2s}
+/* A secondary expanding ripple gives Headliner an unmistakable full-screen shockwave. */
+.effect-headliner{background:radial-gradient(circle at 50% 50%,#ffc64e1c,transparent 75%)}
+.effect-dissolving{transition:opacity 2.5s ease;opacity:0}
+.rainbow-atmosphere,.wave,.sparkles,.vinyl{transition:filter 5.5s ease,opacity 5.5s ease,transform 5.5s ease}
+.reveal-active,.reveal-active .reveal-halo,.reveal-active .reveal-content{animation-duration:6.5s}
+@media(prefers-reduced-motion:reduce){.count-pop,.prompt-emerge{animation:none!important}.effect-rare:after,.effect-headliner:after{animation:none!important}}

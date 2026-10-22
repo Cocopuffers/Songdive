@@ -26,7 +26,7 @@ const prompts = [
 {text:'Name a song released in the 2000s.',test:s=>s.year>=2000&&s.year<2010}
 ];
 const $=id=>document.getElementById(id);
-const ROUND_COUNT=7,ROUND_SECONDS=30,MAX_SCORE=630;
+const ROUND_COUNT=7,ROUND_SECONDS=25,MAX_SCORE=630;
 let dailyPrompts=[],roundIndex=0,totalScore=0,deadline=0,timer=null,locked=false,history=[],filterTier='ALL',soundEnabled=false,audioContext=null,musicLoop=null,musicStep=0,masterGain=null;
 const ranks=[
 {max:99,name:'Novice Head Bopper',description:'You know the beat. The lyrics? Not so much.'},
@@ -51,12 +51,18 @@ const eligible=songs.filter(prompt.test).sort((a,b)=>a.title.localeCompare(b.tit
 const position=eligible.findIndex(s=>s===song);const fraction=eligible.length===1?1:position/(eligible.length-1);
 const points=[25,40,65,90][Math.min(3,Math.floor(fraction*4))];
 return {points,tier:points===90?'ULTRA RARE':points===65?'RARE':points===40?'UNCOMMON':'COMMON'};}
+let countdownHandle=null, countdownToken=0;
+function cancelCountdown(){countdownToken++;if(countdownHandle!==null){clearTimeout(countdownHandle);countdownHandle=null;}$('countdownOverlay').classList.add('hidden');}
 function stopTimer(){if(timer!==null){clearInterval(timer);timer=null;}}
 function updateTimer(){const remaining=Math.max(0,Math.ceil((deadline-performance.now())/1000));$('timer').textContent=remaining;$('timerWrap').classList.toggle('danger',remaining<=5);if(remaining<=0&&!locked)finishRound(null,true);}
-function startGame(){clearCelebration();stopTimer();dailyPrompts=getDailyPrompts();roundIndex=0;totalScore=0;history=[];$('shareBtn').innerHTML='Share my score <span>↗</span>';startRound();}
+function startGame(){cancelCountdown();clearCelebration();stopTimer();dailyPrompts=getDailyPrompts();roundIndex=0;totalScore=0;history=[];$('shareBtn').innerHTML='Share my score <span>↗</span>';startRound();}
 function startRound(){stopTimer();locked=false;$('roundLabel').textContent=`ROUND ${roundIndex+1} / ${ROUND_COUNT}`;$('promptText').textContent=dailyPrompts[roundIndex].text;
 $('songSearch').value='';$('songSearch').disabled=false;$('submitBtn').disabled=false;$('feedback').textContent='';$('feedback').className='feedback';
-$('progressBar').style.width=`${roundIndex/ROUND_COUNT*100}%`;showScreen('game');deadline=performance.now()+ROUND_SECONDS*1000;updateTimer();timer=setInterval(updateTimer,100);$('songSearch').focus();}
+$('progressBar').style.width=`${roundIndex/ROUND_COUNT*100}%`;showScreen('game');
+$('timer').textContent=ROUND_SECONDS;$('timerWrap').classList.remove('danger');$('songSearch').disabled=true;$('submitBtn').disabled=true;
+const promptEl=$('promptText');promptEl.classList.remove('prompt-emerge');void promptEl.offsetWidth;promptEl.classList.add('prompt-emerge');
+cancelCountdown();const token=countdownToken;const overlay=$('countdownOverlay');const number=$('countdownNumber');overlay.classList.remove('hidden');
+let step=3;function tick(){if(token!==countdownToken)return;if(step>0){number.textContent=step;number.classList.remove('count-pop');void number.offsetWidth;number.classList.add('count-pop');step--;countdownHandle=setTimeout(tick,850);}else{overlay.classList.add('hidden');countdownHandle=null;$('songSearch').disabled=false;$('submitBtn').disabled=false;deadline=performance.now()+ROUND_SECONDS*1000;updateTimer();timer=setInterval(updateTimer,100);$('songSearch').focus();}}tick();} 
 function feedback(text){$('feedback').textContent=text;$('feedback').className='feedback';$('songSearch').select();playTone('wrong');}
 function tryGuess(){if(locked)return;if(performance.now()>=deadline){finishRound(null,true);return;}
 const input=$('songSearch').value.trim();if(!input){feedback('The mic is on! Type a song first.');return;}
@@ -71,7 +77,7 @@ $('tierLabel').textContent=tier==='ULTRA RARE'?'HEADLINER · 90':tier;$('points'
 $('resultMessage').textContent=points?`${points} points! Nice pull from the record collection.`:'No points this time. The next track is yours.';
 $('continueBtn').innerHTML=roundIndex===ROUND_COUNT-1?'See your music identity <span>→</span>':'Next round <span>→</span>';
 showScreen('result');if(points){playRarity(points);celebrate(points);}else playTone('wrong');}
-function nextRound(){clearCelebration();roundIndex++;if(roundIndex>=ROUND_COUNT)showFinal();else startRound();}
+function nextRound(){cancelCountdown();clearCelebration();roundIndex++;if(roundIndex>=ROUND_COUNT)showFinal();else startRound();}
 function showFinal(){stopTimer();$('finalScore').textContent=totalScore;const rank=ranks.find(r=>totalScore<=r.max)||ranks.at(-1);
 $('rankName').textContent=rank.name;$('rankDescription').textContent=rank.description;$('finalMessage').textContent='Your seven-song set is in the books. Ready to explore the setlist?';
 const list=$('finalList');list.replaceChildren();history.forEach((h,i)=>{const row=document.createElement('div');row.className='final-row';const info=document.createElement('div');const title=document.createElement('strong');title.textContent=`${i+1}. ${h.song}`;const detail=document.createElement('small');detail.textContent=h.prompt;info.append(title,detail);const pts=document.createElement('b');pts.textContent=`+${h.points}`;pts.style.color=h.points>=90?'var(--ultra)':h.points>=65?'var(--rare)':h.points>=40?'var(--uncommon)':'var(--common)';row.append(info,pts);list.append(row);});
@@ -103,7 +109,7 @@ function celebrate(points){
   clearCelebration();
   if(window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
   const tier=points===90?'headliner':points===65?'rare':points===40?'uncommon':'common';
-  const durations={common:2900,uncommon:3800,rare:5000,headliner:6200};
+  const durations={common:3600,uncommon:4700,rare:6700,headliner:8200};
   const duration=durations[tier];
   const layer=$('celebration');
   document.body.classList.add(`celebrate-${tier}`);
@@ -113,7 +119,7 @@ function celebrate(points){
     $('revealName').textContent='HEADLINER';$('revealPoints').textContent='+90';
     $('revealOverlay').className='reveal-overlay reveal-active';
   }
-  const count={common:22,uncommon:115,rare:90,headliner:230}[tier];
+  const count={common:32,uncommon:150,rare:165,headliner:300}[tier];
   const colors={common:['#e4e8ff','#aeb8ce'],uncommon:['#70ffac','#e4ff9b','#6df6ec'],rare:['#bba1ff','#e8caff','#fff7db','#80f1ff'],headliner:['#ffe36e','#fff6c1','#ffb83d','#f886de','#8ffaff']}[tier];
   for(let i=0;i<count;i++){
     const p=document.createElement('i');
@@ -137,12 +143,12 @@ function celebrate(points){
     }
     layer.append(p);
   }
-  celebrationCleanup=setTimeout(()=>{clearCelebration();},duration+400);
+  celebrationCleanup=setTimeout(()=>{layer.classList.add('effect-dissolving');document.body.classList.remove('celebrate-common','celebrate-uncommon','celebrate-rare','celebrate-headliner');celebrationCleanup=setTimeout(()=>{layer.replaceChildren();layer.className='celebration';$('revealOverlay').className='reveal-overlay';celebrationCleanup=null;},2500);},duration-1800);
 }
 async function shareScore(){const rank=ranks.find(r=>totalScore<=r.max)||ranks.at(-1);const message=`🎵 SongDive Daily Seven\n${rank.name}\n${totalScore}/${MAX_SCORE} points\nhttps://cocopuffers.github.io/Songdive/`;try{if(navigator.share){await navigator.share({text:message});return;}await navigator.clipboard.writeText(message);$('shareBtn').textContent='Copied to clipboard!';}catch(e){if(e.name!=='AbortError')window.prompt('Copy your score:',message);}}
 $('startBtn').addEventListener('click',startGame);$('guessForm').addEventListener('submit',e=>{e.preventDefault();tryGuess();});$('continueBtn').addEventListener('click',nextRound);$('restartBtn').addEventListener('click',startGame);$('shareBtn').addEventListener('click',shareScore);
 $('roundFilter').addEventListener('change',renderAnswers);$('answerSearch').addEventListener('input',renderAnswers);$('tierFilters').addEventListener('click',e=>{const button=e.target.closest('button[data-tier]');if(!button)return;filterTier=button.dataset.tier;updateFilterButtons();renderAnswers();});
 $('soundBtn').addEventListener('click',()=>{soundEnabled=!soundEnabled;$('soundBtn').textContent=soundEnabled?'♫ ON':'♫ OFF';$('soundBtn').setAttribute('aria-pressed',String(soundEnabled));if(soundEnabled){startMusic();playTone('win');}else stopMusic();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)stopMusic();else if(soundEnabled)startMusic();});
-$('homeLink').addEventListener('click',e=>{e.preventDefault();if(!confirm('Return to the home screen? Your current run will be lost.'))return;stopTimer();showScreen('intro');});
+$('homeLink').addEventListener('click',e=>{e.preventDefault();if(!confirm('Return to the home screen? Your current run will be lost.'))return;cancelCountdown();stopTimer();clearCelebration();showScreen('intro');});
 showScreen('intro');
