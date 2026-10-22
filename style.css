@@ -80,3 +80,18 @@ body.celebrate-headliner .vinyl{filter:drop-shadow(0 0 40px #ffd768)}
 .rainbow-atmosphere,.wave,.sparkles,.vinyl{transition:filter 5.5s ease,opacity 5.5s ease,transform 5.5s ease}
 .reveal-active,.reveal-active .reveal-halo,.reveal-active .reveal-content{animation-duration:6.5s}
 @media(prefers-reduced-motion:reduce){.count-pop,.prompt-emerge{animation:none!important}.effect-rare:after,.effect-headliner:after{animation:none!important}}
+
+/* SongDive 2.4 — visible, guaranteed countdown and emerging question. */
+.countdown-overlay:not(.hidden){display:grid!important;visibility:visible;opacity:1}
+.prompt-waiting{opacity:0;transform:translateY(24px) scale(.62);filter:blur(10px)}
+.prompt-emerge{animation:prompt-emerge-24 1.45s cubic-bezier(.16,.8,.2,1) both}
+@keyframes prompt-emerge-24{0%{opacity:0;transform:translateY(24px) scale(.62);filter:blur(10px)}70%{opacity:1;filter:blur(0)}100%{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}}
+/* Dedicated ripple elements: no pseudo-element reuse or animation restart ambiguity. */
+.cinema-ring{position:absolute;left:50%;top:50%;width:22vmin;height:22vmin;border-radius:50%;pointer-events:none;transform:translate(-50%,-50%) scale(.05);opacity:0;animation:cinema-ripple 6.8s cubic-bezier(.12,.55,.23,1) var(--ring-delay,0s) both;will-change:transform,opacity}
+.cinema-rare{border:5px solid #e5d2ff;box-shadow:0 0 75px 16px #ac8aff,0 0 170px 42px #7432ff99}
+.cinema-headliner{border:9px solid #fff1ae;box-shadow:0 0 110px 30px #ffe07a,0 0 220px 60px #ffa827aa;animation-duration:8.2s}
+@keyframes cinema-ripple{0%{opacity:0;transform:translate(-50%,-50%) scale(.05)}9%{opacity:.96}40%{opacity:.88}72%{opacity:.44}100%{opacity:0;transform:translate(-50%,-50%) scale(20)}}
+/* Retire the older pseudo-ring, retaining its beautiful ambient glow. */
+.effect-rare:after,.effect-headliner:after{content:none!important}
+.effect-dissolving{transition:opacity 3s ease;opacity:0}
+@media(prefers-reduced-motion:reduce){.cinema-ring,.prompt-emerge{animation:none!important}.prompt-waiting{opacity:1;transform:none;filter:none}}

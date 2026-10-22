@@ -51,25 +51,54 @@ const eligible=songs.filter(prompt.test).sort((a,b)=>a.title.localeCompare(b.tit
 const position=eligible.findIndex(s=>s===song);const fraction=eligible.length===1?1:position/(eligible.length-1);
 const points=[25,40,65,90][Math.min(3,Math.floor(fraction*4))];
 return {points,tier:points===90?'ULTRA RARE':points===65?'RARE':points===40?'UNCOMMON':'COMMON'};}
-let countdownHandle=null, countdownToken=0;
-function cancelCountdown(){countdownToken++;if(countdownHandle!==null){clearTimeout(countdownHandle);countdownHandle=null;}$('countdownOverlay').classList.add('hidden');}
+// SongDive 2.4: the countdown is an explicit, cancellable round state.
+let countdownHandle=null, countdownToken=0, roundReady=false;
+function cancelCountdown(){
+  countdownToken++;
+  if(countdownHandle!==null)clearTimeout(countdownHandle);
+  countdownHandle=null;
+  const overlay=$('countdownOverlay');overlay.classList.add('hidden');overlay.setAttribute('aria-hidden','true');
+}
 function stopTimer(){if(timer!==null){clearInterval(timer);timer=null;}}
 function updateTimer(){const remaining=Math.max(0,Math.ceil((deadline-performance.now())/1000));$('timer').textContent=remaining;$('timerWrap').classList.toggle('danger',remaining<=5);if(remaining<=0&&!locked)finishRound(null,true);}
 function startGame(){cancelCountdown();clearCelebration();stopTimer();dailyPrompts=getDailyPrompts();roundIndex=0;totalScore=0;history=[];$('shareBtn').innerHTML='Share my score <span>↗</span>';startRound();}
-function startRound(){stopTimer();locked=false;$('roundLabel').textContent=`ROUND ${roundIndex+1} / ${ROUND_COUNT}`;$('promptText').textContent=dailyPrompts[roundIndex].text;
-$('songSearch').value='';$('songSearch').disabled=false;$('submitBtn').disabled=false;$('feedback').textContent='';$('feedback').className='feedback';
-$('progressBar').style.width=`${roundIndex/ROUND_COUNT*100}%`;showScreen('game');
-$('timer').textContent=ROUND_SECONDS;$('timerWrap').classList.remove('danger');$('songSearch').disabled=true;$('submitBtn').disabled=true;
-const promptEl=$('promptText');promptEl.classList.remove('prompt-emerge');void promptEl.offsetWidth;promptEl.classList.add('prompt-emerge');
-cancelCountdown();const token=countdownToken;const overlay=$('countdownOverlay');const number=$('countdownNumber');overlay.classList.remove('hidden');
-let step=3;function tick(){if(token!==countdownToken)return;if(step>0){number.textContent=step;number.classList.remove('count-pop');void number.offsetWidth;number.classList.add('count-pop');step--;countdownHandle=setTimeout(tick,850);}else{overlay.classList.add('hidden');countdownHandle=null;$('songSearch').disabled=false;$('submitBtn').disabled=false;deadline=performance.now()+ROUND_SECONDS*1000;updateTimer();timer=setInterval(updateTimer,100);$('songSearch').focus();}}tick();} 
+function startRound(){
+  cancelCountdown();stopTimer();roundReady=false;locked=false;
+  $('roundLabel').textContent=`ROUND ${roundIndex+1} / ${ROUND_COUNT}`;
+  $('promptText').textContent=dailyPrompts[roundIndex].text;
+  $('songSearch').value='';$('songSearch').disabled=true;$('submitBtn').disabled=true;
+  $('feedback').textContent='';$('feedback').className='feedback';
+  $('progressBar').style.width=`${roundIndex/ROUND_COUNT*100}%`;
+  $('timer').textContent=ROUND_SECONDS;$('timerWrap').classList.remove('danger');
+  showScreen('game');
+  const promptEl=$('promptText');promptEl.classList.remove('prompt-emerge','prompt-waiting');promptEl.classList.add('prompt-waiting');
+  const token=countdownToken,overlay=$('countdownOverlay'),number=$('countdownNumber');
+  overlay.classList.remove('hidden');overlay.setAttribute('aria-hidden','false');
+  let count=3;
+  function step(){
+    if(token!==countdownToken)return;
+    if(count>=1){
+      number.textContent=String(count);
+      number.classList.remove('count-pop');void number.offsetWidth;number.classList.add('count-pop');
+      count--;countdownHandle=setTimeout(step,1000);
+      return;
+    }
+    overlay.classList.add('hidden');overlay.setAttribute('aria-hidden','true');countdownHandle=null;
+    promptEl.classList.remove('prompt-waiting','prompt-emerge');void promptEl.offsetWidth;promptEl.classList.add('prompt-emerge');
+    roundReady=true;$('songSearch').disabled=false;$('submitBtn').disabled=false;
+    deadline=performance.now()+ROUND_SECONDS*1000;updateTimer();timer=setInterval(updateTimer,100);
+    $('songSearch').focus({preventScroll:true});
+  }
+  // Make the overlay visible before the first numeral is animated.
+  countdownHandle=setTimeout(step,100);
+}
 function feedback(text){$('feedback').textContent=text;$('feedback').className='feedback';$('songSearch').select();playTone('wrong');}
-function tryGuess(){if(locked)return;if(performance.now()>=deadline){finishRound(null,true);return;}
+function tryGuess(){if(locked||!roundReady)return;if(performance.now()>=deadline){finishRound(null,true);return;}
 const input=$('songSearch').value.trim();if(!input){feedback('The mic is on! Type a song first.');return;}
 const song=findSong(input);if(!song){feedback("That song hasn't been sung yet! (At least not in our demo catalog.)");return;}
 if(!dailyPrompts[roundIndex].test(song)){feedback('Great song, wrong gig! Try again.');return;}
 finishRound(song,false);}
-function finishRound(song,expired){if(locked)return;locked=true;stopTimer();const prompt=dailyPrompts[roundIndex];const {points,tier}=scoreFor(song,prompt);totalScore+=points;
+function finishRound(song,expired){if(locked)return;locked=true;roundReady=false;stopTimer();const prompt=dailyPrompts[roundIndex];const {points,tier}=scoreFor(song,prompt);totalScore+=points;
 history.push({prompt:prompt.text,song:song?`${song.title} — ${song.artist}`:'No correct answer',points,tier});
 $('songSearch').disabled=true;$('submitBtn').disabled=true;$('resultIcon').textContent=points?'♫':'×';$('resultEyebrow').textContent=expired?"TIME'S UP":'ANSWER LOCKED';
 $('resultTitle').textContent=song?song.title:"Time's up!";$('resultArtist').textContent=song?song.artist:'The clock won this round.';
@@ -98,52 +127,84 @@ const chords=[[220,261.63,329.63],[174.61,220,261.63],[196,246.94,293.66],[164.8
 function musicTick(){if(!soundEnabled||!audioContext||audioContext.state!=='running')return;const t=audioContext.currentTime+.035;const chord=chords[Math.floor(musicStep/4)%chords.length];if(musicStep%4===0){chord.forEach((f,i)=>synth(f,t,2.8,.012,'sine'));synth(chord[0]/2,t,1.4,.025,'triangle');}const melody=[0,2,1,2,0,1,2,1][musicStep%8];synth(chord[melody]*2,t,.22,.011,'sine');musicStep++;}
 function startMusic(){if(!soundEnabled||!ensureAudio())return;stopMusic();musicTick();musicLoop=setInterval(musicTick,650);document.body.classList.add('music-on');}
 function stopMusic(){if(musicLoop!==null){clearInterval(musicLoop);musicLoop=null;}document.body.classList.remove('music-on');}
-// Each tier has its own choreography. Effects live independently of the result card.
-let celebrationCleanup=null;
+// SongDive 2.4: every celebration restarts its own wave, even on repeated tiers.
+let celebrationCleanup=null, celebrationToken=0, vinylFrame=null, vinylBoost=1;
+function updateVinylSpeed(){
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const animations=[...document.querySelectorAll('.vinyl')].flatMap(el=>el.getAnimations()).filter(a=>a.effect);
+  for(const animation of animations)animation.playbackRate=vinylBoost;
+}
+function spinRecords(points){
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const target=({25:1.6,40:2.8,65:5,90:9})[points]||1;
+  if(vinylFrame!==null)cancelAnimationFrame(vinylFrame);
+  const started=performance.now(),start=vinylBoost;
+  function animate(now){
+    const elapsed=now-started;
+    // Fast acceleration followed by a leisurely five-second coast back to idle.
+    const desired=elapsed<380?start+(target-start)*(1-Math.pow(1-elapsed/380,3)):
+      1+(target-1)*Math.pow(Math.max(0,1-(elapsed-380)/5400),2);
+    vinylBoost=Math.max(1,desired);updateVinylSpeed();
+    if(elapsed<5780)vinylFrame=requestAnimationFrame(animate);
+    else{vinylBoost=1;updateVinylSpeed();vinylFrame=null;}
+  }
+  vinylFrame=requestAnimationFrame(animate);
+}
 function clearCelebration(){
+  celebrationToken++;
   if(celebrationCleanup!==null){clearTimeout(celebrationCleanup);celebrationCleanup=null;}
   document.body.classList.remove('celebrate-common','celebrate-uncommon','celebrate-rare','celebrate-headliner');
-  $('celebration').replaceChildren();$('revealOverlay').className='reveal-overlay';
+  const layer=$('celebration');layer.className='celebration';layer.replaceChildren();
+  $('revealOverlay').className='reveal-overlay';
 }
 function celebrate(points){
-  clearCelebration();
+  clearCelebration();spinRecords(points);
   if(window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const token=celebrationToken;
   const tier=points===90?'headliner':points===65?'rare':points===40?'uncommon':'common';
-  const durations={common:3600,uncommon:4700,rare:6700,headliner:8200};
-  const duration=durations[tier];
+  const duration={common:3600,uncommon:4700,rare:7000,headliner:8500}[tier];
   const layer=$('celebration');
-  document.body.classList.add(`celebrate-${tier}`);
+  // A newly created ring element is guaranteed to start a fresh animation.
   layer.className=`celebration effect-${tier}`;
-  // The large score reveal is exclusive to the Headliner tier.
+  const rippleCount=tier==='rare'?2:tier==='headliner'?3:0;
+  for(let r=0;r<rippleCount;r++){
+    const ring=document.createElement('div');ring.className=`cinema-ring cinema-${tier}`;
+    ring.style.setProperty('--ring-delay',`${r*(tier==='rare'?.52:.44)}s`);
+    layer.append(ring);
+  }
+  document.body.classList.add(`celebrate-${tier}`);
   if(tier==='headliner'){
     $('revealName').textContent='HEADLINER';$('revealPoints').textContent='+90';
+    $('revealOverlay').className='reveal-overlay';void $('revealOverlay').offsetWidth;
     $('revealOverlay').className='reveal-overlay reveal-active';
   }
   const count={common:32,uncommon:150,rare:165,headliner:300}[tier];
   const colors={common:['#e4e8ff','#aeb8ce'],uncommon:['#70ffac','#e4ff9b','#6df6ec'],rare:['#bba1ff','#e8caff','#fff7db','#80f1ff'],headliner:['#ffe36e','#fff6c1','#ffb83d','#f886de','#8ffaff']}[tier];
   for(let i=0;i<count;i++){
-    const p=document.createElement('i');
-    p.className=`fx-piece fx-${tier}`;
-    p.style.background=colors[i%colors.length];
+    const p=document.createElement('i');p.className=`fx-piece fx-${tier}`;p.style.background=colors[i%colors.length];
     const angle=Math.random()*Math.PI*2;
-    const distance=(tier==='headliner'?120: tier==='rare'?90:45)+Math.random()*(tier==='headliner'?650:tier==='rare'?480:340);
-    p.style.setProperty('--dx',`${Math.cos(angle)*distance}px`);
-    p.style.setProperty('--dy',`${Math.sin(angle)*distance}px`);
+    const distance=(tier==='headliner'?120:tier==='rare'?90:45)+Math.random()*(tier==='headliner'?650:tier==='rare'?480:340);
+    p.style.setProperty('--dx',`${Math.cos(angle)*distance}px`);p.style.setProperty('--dy',`${Math.sin(angle)*distance}px`);
     p.style.setProperty('--turn',`${(Math.random()-.5)*1300}deg`);
     p.style.setProperty('--delay',`${Math.random()*(tier==='headliner'?.65:.38)}s`);
     p.style.setProperty('--life',`${(duration/1000)*(.58+Math.random()*.36)}s`);
     p.style.setProperty('--size',`${tier==='common'?3+Math.random()*5:5+Math.random()*11}px`);
     if(tier==='uncommon'){
-      p.style.left=`${15+Math.random()*70}%`;
-      p.style.top=`${-8-Math.random()*25}%`;
+      p.style.left=`${15+Math.random()*70}%`;p.style.top=`${-8-Math.random()*25}%`;
       p.style.setProperty('--dx',`${(Math.random()-.5)*230}px`);
       p.style.setProperty('--dy',`${window.innerHeight*(.9+Math.random()*.6)}px`);
-    }else{
-      p.style.left=`${47+Math.random()*6}%`;p.style.top=`${40+Math.random()*13}%`;
-    }
+    }else{p.style.left=`${47+Math.random()*6}%`;p.style.top=`${40+Math.random()*13}%`;}
     layer.append(p);
   }
-  celebrationCleanup=setTimeout(()=>{layer.classList.add('effect-dissolving');document.body.classList.remove('celebrate-common','celebrate-uncommon','celebrate-rare','celebrate-headliner');celebrationCleanup=setTimeout(()=>{layer.replaceChildren();layer.className='celebration';$('revealOverlay').className='reveal-overlay';celebrationCleanup=null;},2500);},duration-1800);
+  celebrationCleanup=setTimeout(()=>{
+    if(token!==celebrationToken)return;
+    layer.classList.add('effect-dissolving');
+    document.body.classList.remove('celebrate-common','celebrate-uncommon','celebrate-rare','celebrate-headliner');
+    celebrationCleanup=setTimeout(()=>{
+      if(token!==celebrationToken)return;
+      layer.replaceChildren();layer.className='celebration';$('revealOverlay').className='reveal-overlay';celebrationCleanup=null;
+    },3000);
+  },duration-2000);
 }
 async function shareScore(){const rank=ranks.find(r=>totalScore<=r.max)||ranks.at(-1);const message=`🎵 SongDive Daily Seven\n${rank.name}\n${totalScore}/${MAX_SCORE} points\nhttps://cocopuffers.github.io/Songdive/`;try{if(navigator.share){await navigator.share({text:message});return;}await navigator.clipboard.writeText(message);$('shareBtn').textContent='Copied to clipboard!';}catch(e){if(e.name!=='AbortError')window.prompt('Copy your score:',message);}}
 $('startBtn').addEventListener('click',startGame);$('guessForm').addEventListener('submit',e=>{e.preventDefault();tryGuess();});$('continueBtn').addEventListener('click',nextRound);$('restartBtn').addEventListener('click',startGame);$('shareBtn').addEventListener('click',shareScore);
