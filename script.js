@@ -57,7 +57,7 @@ function cancelCountdown(){
   countdownToken++;
   if(countdownHandle!==null)clearTimeout(countdownHandle);
   countdownHandle=null;
-  const overlay=$('countdownOverlay');overlay.classList.add('hidden');overlay.setAttribute('aria-hidden','true');
+  const overlay=$('roundCountdown');overlay.classList.add('hidden');$('questionCard').classList.remove('question-arriving','question-ready');
 }
 function stopTimer(){if(timer!==null){clearInterval(timer);timer=null;}}
 function updateTimer(){const remaining=Math.max(0,Math.ceil((deadline-performance.now())/1000));$('timer').textContent=remaining;$('timerWrap').classList.toggle('danger',remaining<=5);if(remaining<=0&&!locked)finishRound(null,true);}
@@ -71,26 +71,26 @@ function startRound(){
   $('progressBar').style.width=`${roundIndex/ROUND_COUNT*100}%`;
   $('timer').textContent=ROUND_SECONDS;$('timerWrap').classList.remove('danger');
   showScreen('game');
-  const promptEl=$('promptText');promptEl.classList.remove('prompt-emerge','prompt-waiting');promptEl.classList.add('prompt-waiting');
-  const token=countdownToken,overlay=$('countdownOverlay'),number=$('countdownNumber');
-  overlay.classList.remove('hidden');overlay.setAttribute('aria-hidden','false');
+  const card=$('questionCard'),countdown=$('roundCountdown'),number=$('roundCountdownNumber');
+  card.classList.remove('question-arriving','question-ready');
+  void card.offsetWidth;card.classList.add('question-arriving');
+  countdown.classList.remove('hidden');
+  const token=countdownToken;
   let count=3;
   function step(){
     if(token!==countdownToken)return;
     if(count>=1){
       number.textContent=String(count);
       number.classList.remove('count-pop');void number.offsetWidth;number.classList.add('count-pop');
-      count--;countdownHandle=setTimeout(step,1000);
-      return;
+      count--;countdownHandle=setTimeout(step,1000);return;
     }
-    overlay.classList.add('hidden');overlay.setAttribute('aria-hidden','true');countdownHandle=null;
-    promptEl.classList.remove('prompt-waiting','prompt-emerge');void promptEl.offsetWidth;promptEl.classList.add('prompt-emerge');
+    countdown.classList.add('hidden');countdownHandle=null;
+    card.classList.remove('question-arriving');card.classList.add('question-ready');
     roundReady=true;$('songSearch').disabled=false;$('submitBtn').disabled=false;
     deadline=performance.now()+ROUND_SECONDS*1000;updateTimer();timer=setInterval(updateTimer,100);
     $('songSearch').focus({preventScroll:true});
   }
-  // Make the overlay visible before the first numeral is animated.
-  countdownHandle=setTimeout(step,100);
+  step();
 }
 function feedback(text){$('feedback').textContent=text;$('feedback').className='feedback';$('songSearch').select();playTone('wrong');}
 function tryGuess(){if(locked||!roundReady)return;if(performance.now()>=deadline){finishRound(null,true);return;}
@@ -150,11 +150,32 @@ function spinRecords(points){
   }
   vinylFrame=requestAnimationFrame(animate);
 }
+function igniteVinyl(tier,duration){
+  const colors={common:['#d6dce9','#9da9bc'],uncommon:['#72ffac','#d6ff9b'],rare:['#c99cff','#8d55ff'],headliner:['#ffe78d','#ff9e36']}[tier];
+  document.querySelectorAll('.vinyl-fire').forEach((fire,recordIndex)=>{
+    fire.replaceChildren();
+    const count={common:9,uncommon:20,rare:30,headliner:46}[tier];
+    for(let i=0;i<count;i++){
+      const spark=document.createElement('i');spark.className='vinyl-spark';
+      const angle=Math.random()*Math.PI*2;
+      const radius=45+Math.random()*6;
+      spark.style.left=`${50+Math.cos(angle)*radius}%`;
+      spark.style.top=`${50+Math.sin(angle)*radius}%`;
+      spark.style.background=colors[i%colors.length];
+      spark.style.setProperty('--sx',`${Math.cos(angle)*(15+Math.random()*55)}px`);
+      spark.style.setProperty('--sy',`${Math.sin(angle)*(15+Math.random()*55)}px`);
+      spark.style.setProperty('--spark-delay',`${Math.random()*1.5}s`);
+      spark.style.setProperty('--spark-life',`${1+Math.random()*1.7}s`);
+      fire.append(spark);
+    }
+  });
+}
 function clearCelebration(){
   celebrationToken++;
   if(celebrationCleanup!==null){clearTimeout(celebrationCleanup);celebrationCleanup=null;}
   document.body.classList.remove('celebrate-common','celebrate-uncommon','celebrate-rare','celebrate-headliner');
   const layer=$('celebration');layer.className='celebration';layer.replaceChildren();
+  document.querySelectorAll('.vinyl-fire').forEach(el=>el.replaceChildren());
   $('revealOverlay').className='reveal-overlay';
 }
 function celebrate(points){
@@ -166,13 +187,14 @@ function celebrate(points){
   const layer=$('celebration');
   // A newly created ring element is guaranteed to start a fresh animation.
   layer.className=`celebration effect-${tier}`;
-  const rippleCount=tier==='rare'?2:tier==='headliner'?3:0;
+  const rippleCount=tier==='rare'||tier==='headliner'?1:0;
   for(let r=0;r<rippleCount;r++){
     const ring=document.createElement('div');ring.className=`cinema-ring cinema-${tier}`;
     ring.style.setProperty('--ring-delay',`${r*(tier==='rare'?.52:.44)}s`);
     layer.append(ring);
   }
   document.body.classList.add(`celebrate-${tier}`);
+  igniteVinyl(tier,duration);
   if(tier==='headliner'){
     $('revealName').textContent='HEADLINER';$('revealPoints').textContent='+90';
     $('revealOverlay').className='reveal-overlay';void $('revealOverlay').offsetWidth;

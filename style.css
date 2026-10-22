@@ -95,3 +95,33 @@ body.celebrate-headliner .vinyl{filter:drop-shadow(0 0 40px #ffd768)}
 .effect-rare:after,.effect-headliner:after{content:none!important}
 .effect-dissolving{transition:opacity 3s ease;opacity:0}
 @media(prefers-reduced-motion:reduce){.cinema-ring,.prompt-emerge{animation:none!important}.prompt-waiting{opacity:1;transform:none;filter:none}}
+
+/* SongDive 2.5 — question stays visible throughout the 3–2–1. */
+.question-card{border:1px solid #bba0ff45;background:linear-gradient(145deg,#34224e8c,#18132d66);padding:clamp(16px,4vw,28px);border-radius:22px;transform-origin:center center;will-change:transform,opacity,filter}
+.question-card .hint{margin-bottom:0}
+.question-arriving{animation:question-grow-25 3.05s cubic-bezier(.2,.75,.18,1) both}
+.question-ready{transform:scale(1);opacity:1;filter:none}
+@keyframes question-grow-25{0%{transform:scale(.72) translateY(22px);opacity:.35;filter:blur(8px)}24%{opacity:.95;filter:blur(1px)}100%{transform:scale(1);opacity:1;filter:blur(0)}}
+.round-countdown{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-align:center;min-height:145px;margin:8px auto 12px}
+.round-countdown span{font:800 14px 'Space Grotesk',sans-serif;letter-spacing:.26em;color:var(--lime)}
+.round-countdown strong{font:900 clamp(54px,10vw,84px) 'Space Grotesk',sans-serif;line-height:1.15;color:white;text-shadow:0 0 28px #c59aff}
+.round-countdown small{font-size:10px;letter-spacing:.17em;font-weight:800;color:#b9add2}
+/* No separate opaque overlay hiding the question. */
+#countdownOverlay{display:none!important}
+/* Vinyl fire: colored corona and sparks are attached to BOTH records. */
+.vinyl{overflow:visible;isolation:isolate}
+.vinyl-fire{position:absolute;inset:-12%;border-radius:50%;pointer-events:none;z-index:-1;opacity:0;transition:opacity 2.8s ease,filter 2.8s ease}
+.vinyl-fire:before{content:'';position:absolute;inset:8%;border-radius:50%;border:7px solid var(--flame-color,#d6dce9);box-shadow:0 0 18px 8px var(--flame-glow,#d6dce955),0 0 55px 16px var(--flame-glow,#d6dce955),inset 0 0 24px var(--flame-color,#d6dce9);animation:record-fire 1s ease-in-out infinite alternate}
+body.celebrate-common{--flame-color:#c9d2e0;--flame-glow:#c9d2e066}
+body.celebrate-uncommon{--flame-color:#65ff9d;--flame-glow:#65ff9d99}
+body.celebrate-rare{--flame-color:#c091ff;--flame-glow:#9d56ffb0}
+body.celebrate-headliner{--flame-color:#ffe17a;--flame-glow:#ffad3ec9}
+body[class*="celebrate-"] .vinyl-fire{opacity:1;filter:brightness(1.25)}
+body.celebrate-headliner .vinyl-fire:before{border-width:12px;box-shadow:0 0 30px 15px #ffe17a,0 0 95px 32px #ffab44b3,inset 0 0 35px #ffe17a}
+body.celebrate-rare .vinyl-fire:before{border-width:9px}
+.vinyl-spark{position:absolute;width:6px;height:13px;border-radius:50% 50% 30% 30%;box-shadow:0 0 13px 3px currentColor;opacity:0;animation:vinyl-spark-fly var(--spark-life,1.4s) ease-out var(--spark-delay,0s) 3 both;transform:translate(-50%,-50%)}
+@keyframes record-fire{from{transform:scale(.97);filter:brightness(.85)}to{transform:scale(1.07);filter:brightness(1.5)}}
+@keyframes vinyl-spark-fly{0%{opacity:0;transform:translate(-50%,-50%) scale(.3)}20%{opacity:1}100%{opacity:0;transform:translate(calc(-50% + var(--sx)),calc(-50% + var(--sy))) scale(.1)}}
+/* Make the records noticeable on narrow screens, without covering the game. */
+@media(max-width:600px){.vinyl{opacity:.42;width:220px;top:24%}.vinyl-left{left:-170px}.vinyl-right{right:-170px}.question-card{padding:18px}.round-countdown{min-height:125px}}
+@media(prefers-reduced-motion:reduce){.question-arriving,.vinyl-spark,.vinyl-fire:before{animation:none!important}.question-arriving{transform:none;opacity:1;filter:none}.vinyl-fire{opacity:0!important}}
