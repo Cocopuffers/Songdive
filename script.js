@@ -1,5 +1,5 @@
 'use strict';
-// SongDive 2.1: static-site demo. The sample catalog and rarity scores are illustrative,
+// SongDive 2.2: static-site demo. The sample catalog and rarity scores are illustrative,
 // NOT based on Spotify streams or actual player submissions.
 const songs = [
 ['Yellow','Coldplay',2000,269],['Purple Rain','Prince',1984,521],['Blue Monday','New Order',1983,449],
@@ -53,7 +53,7 @@ const points=[25,40,65,90][Math.min(3,Math.floor(fraction*4))];
 return {points,tier:points===90?'ULTRA RARE':points===65?'RARE':points===40?'UNCOMMON':'COMMON'};}
 function stopTimer(){if(timer!==null){clearInterval(timer);timer=null;}}
 function updateTimer(){const remaining=Math.max(0,Math.ceil((deadline-performance.now())/1000));$('timer').textContent=remaining;$('timerWrap').classList.toggle('danger',remaining<=5);if(remaining<=0&&!locked)finishRound(null,true);}
-function startGame(){stopTimer();dailyPrompts=getDailyPrompts();roundIndex=0;totalScore=0;history=[];$('shareBtn').innerHTML='Share my score <span>↗</span>';startRound();}
+function startGame(){clearCelebration();stopTimer();dailyPrompts=getDailyPrompts();roundIndex=0;totalScore=0;history=[];$('shareBtn').innerHTML='Share my score <span>↗</span>';startRound();}
 function startRound(){stopTimer();locked=false;$('roundLabel').textContent=`ROUND ${roundIndex+1} / ${ROUND_COUNT}`;$('promptText').textContent=dailyPrompts[roundIndex].text;
 $('songSearch').value='';$('songSearch').disabled=false;$('submitBtn').disabled=false;$('feedback').textContent='';$('feedback').className='feedback';
 $('progressBar').style.width=`${roundIndex/ROUND_COUNT*100}%`;showScreen('game');deadline=performance.now()+ROUND_SECONDS*1000;updateTimer();timer=setInterval(updateTimer,100);$('songSearch').focus();}
@@ -71,11 +71,11 @@ $('tierLabel').textContent=tier==='ULTRA RARE'?'HEADLINER · 90':tier;$('points'
 $('resultMessage').textContent=points?`${points} points! Nice pull from the record collection.`:'No points this time. The next track is yours.';
 $('continueBtn').innerHTML=roundIndex===ROUND_COUNT-1?'See your music identity <span>→</span>':'Next round <span>→</span>';
 showScreen('result');if(points){playRarity(points);celebrate(points);}else playTone('wrong');}
-function nextRound(){roundIndex++;if(roundIndex>=ROUND_COUNT)showFinal();else startRound();}
+function nextRound(){clearCelebration();roundIndex++;if(roundIndex>=ROUND_COUNT)showFinal();else startRound();}
 function showFinal(){stopTimer();$('finalScore').textContent=totalScore;const rank=ranks.find(r=>totalScore<=r.max)||ranks.at(-1);
 $('rankName').textContent=rank.name;$('rankDescription').textContent=rank.description;$('finalMessage').textContent='Your seven-song set is in the books. Ready to explore the setlist?';
 const list=$('finalList');list.replaceChildren();history.forEach((h,i)=>{const row=document.createElement('div');row.className='final-row';const info=document.createElement('div');const title=document.createElement('strong');title.textContent=`${i+1}. ${h.song}`;const detail=document.createElement('small');detail.textContent=h.prompt;info.append(title,detail);const pts=document.createElement('b');pts.textContent=`+${h.points}`;pts.style.color=h.points>=90?'var(--ultra)':h.points>=65?'var(--rare)':h.points>=40?'var(--uncommon)':'var(--common)';row.append(info,pts);list.append(row);});
-const select=$('roundFilter');select.replaceChildren();dailyPrompts.forEach((p,i)=>{const opt=document.createElement('option');opt.value=String(i);opt.textContent=`Round ${i+1}: ${p.text}`;select.append(opt);});select.value='0';filterTier='ALL';$('answerSearch').value='';updateFilterButtons();renderAnswers();showScreen('final');celebrate(90);playTone('final');}
+const select=$('roundFilter');select.replaceChildren();dailyPrompts.forEach((p,i)=>{const opt=document.createElement('option');opt.value=String(i);opt.textContent=`Round ${i+1}: ${p.text}`;select.append(opt);});select.value='0';filterTier='ALL';$('answerSearch').value='';updateFilterButtons();renderAnswers();showScreen('final');playTone('final');}
 function updateFilterButtons(){document.querySelectorAll('[data-tier]').forEach(b=>{if(b.closest('#tierFilters'))b.classList.toggle('active',b.dataset.tier===filterTier);});}
 function renderAnswers(){const idx=Number($('roundFilter').value)||0,prompt=dailyPrompts[idx];if(!prompt)return;
 const query=normalize($('answerSearch').value);const matches=songs.filter(s=>prompt.test(s)).map(s=>({...s,score:scoreFor(s,prompt)})).filter(s=>(filterTier==='ALL'||s.score.tier===filterTier)&&(!query||normalize(`${s.title} ${s.artist}`).includes(query))).sort((a,b)=>b.score.points-a.score.points||a.title.localeCompare(b.title));
@@ -92,8 +92,53 @@ const chords=[[220,261.63,329.63],[174.61,220,261.63],[196,246.94,293.66],[164.8
 function musicTick(){if(!soundEnabled||!audioContext||audioContext.state!=='running')return;const t=audioContext.currentTime+.035;const chord=chords[Math.floor(musicStep/4)%chords.length];if(musicStep%4===0){chord.forEach((f,i)=>synth(f,t,2.8,.012,'sine'));synth(chord[0]/2,t,1.4,.025,'triangle');}const melody=[0,2,1,2,0,1,2,1][musicStep%8];synth(chord[melody]*2,t,.22,.011,'sine');musicStep++;}
 function startMusic(){if(!soundEnabled||!ensureAudio())return;stopMusic();musicTick();musicLoop=setInterval(musicTick,650);document.body.classList.add('music-on');}
 function stopMusic(){if(musicLoop!==null){clearInterval(musicLoop);musicLoop=null;}document.body.classList.remove('music-on');}
-let intensityTimer=null;
-function celebrate(points){if(window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;const layer=$('celebration');layer.replaceChildren();const count=points>=90?185:points>=65?120:points>=40?65:35;const colors=points>=90?['#ffe36e','#fff2b5','#ff69c8','#76f6f5','#b69aff']:points>=65?['#bd8cff','#fa86ff','#8ef5f4','#fff0ad']:points>=40?['#67ffa3','#b6ff6d','#7de9f3']:['#c4d0e8','#9caac7','#f4e9ff'];document.body.classList.remove('surge','surge-ultra');void document.body.offsetWidth;document.body.classList.add('surge');if(points>=90)document.body.classList.add('surge-ultra');clearTimeout(intensityTimer);intensityTimer=setTimeout(()=>document.body.classList.remove('surge','surge-ultra'),points>=90?3500:2400);for(let i=0;i<count;i++){const piece=document.createElement('i');piece.className='particle';const angle=Math.random()*Math.PI*2,velocity=(points>=90?180:125)+Math.random()*(points>=90?520:340);piece.style.left='50%';piece.style.top='45%';piece.style.background=colors[i%colors.length];piece.style.setProperty('--dx',`${Math.cos(angle)*velocity}px`);piece.style.setProperty('--dy',`${Math.sin(angle)*velocity}px`);piece.style.setProperty('--spin',`${(Math.random()-.5)*1200}deg`);piece.style.animationDelay=`${Math.random()*.19}s`;piece.style.animationDuration=`${1.1+Math.random()*1.6}s`;piece.style.width=`${5+Math.random()*10}px`;piece.style.height=`${7+Math.random()*14}px`;layer.append(piece);piece.addEventListener('animationend',()=>piece.remove(),{once:true});}}
+// Each tier has its own choreography. Effects live independently of the result card.
+let celebrationCleanup=null;
+function clearCelebration(){
+  if(celebrationCleanup!==null){clearTimeout(celebrationCleanup);celebrationCleanup=null;}
+  document.body.classList.remove('celebrate-common','celebrate-uncommon','celebrate-rare','celebrate-headliner');
+  $('celebration').replaceChildren();$('revealOverlay').className='reveal-overlay';
+}
+function celebrate(points){
+  clearCelebration();
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const tier=points===90?'headliner':points===65?'rare':points===40?'uncommon':'common';
+  const durations={common:2900,uncommon:3800,rare:5000,headliner:6200};
+  const duration=durations[tier];
+  const layer=$('celebration');
+  document.body.classList.add(`celebrate-${tier}`);
+  layer.className=`celebration effect-${tier}`;
+  // The large score reveal is exclusive to the Headliner tier.
+  if(tier==='headliner'){
+    $('revealName').textContent='HEADLINER';$('revealPoints').textContent='+90';
+    $('revealOverlay').className='reveal-overlay reveal-active';
+  }
+  const count={common:22,uncommon:115,rare:90,headliner:230}[tier];
+  const colors={common:['#e4e8ff','#aeb8ce'],uncommon:['#70ffac','#e4ff9b','#6df6ec'],rare:['#bba1ff','#e8caff','#fff7db','#80f1ff'],headliner:['#ffe36e','#fff6c1','#ffb83d','#f886de','#8ffaff']}[tier];
+  for(let i=0;i<count;i++){
+    const p=document.createElement('i');
+    p.className=`fx-piece fx-${tier}`;
+    p.style.background=colors[i%colors.length];
+    const angle=Math.random()*Math.PI*2;
+    const distance=(tier==='headliner'?120: tier==='rare'?90:45)+Math.random()*(tier==='headliner'?650:tier==='rare'?480:340);
+    p.style.setProperty('--dx',`${Math.cos(angle)*distance}px`);
+    p.style.setProperty('--dy',`${Math.sin(angle)*distance}px`);
+    p.style.setProperty('--turn',`${(Math.random()-.5)*1300}deg`);
+    p.style.setProperty('--delay',`${Math.random()*(tier==='headliner'?.65:.38)}s`);
+    p.style.setProperty('--life',`${(duration/1000)*(.58+Math.random()*.36)}s`);
+    p.style.setProperty('--size',`${tier==='common'?3+Math.random()*5:5+Math.random()*11}px`);
+    if(tier==='uncommon'){
+      p.style.left=`${15+Math.random()*70}%`;
+      p.style.top=`${-8-Math.random()*25}%`;
+      p.style.setProperty('--dx',`${(Math.random()-.5)*230}px`);
+      p.style.setProperty('--dy',`${window.innerHeight*(.9+Math.random()*.6)}px`);
+    }else{
+      p.style.left=`${47+Math.random()*6}%`;p.style.top=`${40+Math.random()*13}%`;
+    }
+    layer.append(p);
+  }
+  celebrationCleanup=setTimeout(()=>{clearCelebration();},duration+400);
+}
 async function shareScore(){const rank=ranks.find(r=>totalScore<=r.max)||ranks.at(-1);const message=`🎵 SongDive Daily Seven\n${rank.name}\n${totalScore}/${MAX_SCORE} points\nhttps://cocopuffers.github.io/Songdive/`;try{if(navigator.share){await navigator.share({text:message});return;}await navigator.clipboard.writeText(message);$('shareBtn').textContent='Copied to clipboard!';}catch(e){if(e.name!=='AbortError')window.prompt('Copy your score:',message);}}
 $('startBtn').addEventListener('click',startGame);$('guessForm').addEventListener('submit',e=>{e.preventDefault();tryGuess();});$('continueBtn').addEventListener('click',nextRound);$('restartBtn').addEventListener('click',startGame);$('shareBtn').addEventListener('click',shareScore);
 $('roundFilter').addEventListener('change',renderAnswers);$('answerSearch').addEventListener('input',renderAnswers);$('tierFilters').addEventListener('click',e=>{const button=e.target.closest('button[data-tier]');if(!button)return;filterTier=button.dataset.tier;updateFilterButtons();renderAnswers();});

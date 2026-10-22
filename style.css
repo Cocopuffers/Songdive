@@ -20,3 +20,45 @@ body.surge-ultra .score-card{box-shadow:0 0 55px #ffd46d88,0 0 120px #a05eff66;a
 body.music-on .equalizer i{animation-play-state:running}
 @media(max-width:600px){.wave{width:220vw;left:-60vw;filter:blur(45px)}.game,.result,.final{margin-top:14px;padding-top:30px}}
 @media(prefers-reduced-motion:reduce){.wave,.sparkles,.particle{animation:none!important}.wave{opacity:.18}body.surge .wave{opacity:.18}}
+
+/* SongDive 2.2 — four truly distinct cinematic celebrations. */
+/* Ambient changes ease back slowly; no short-lived surge class or instant reset. */
+.rainbow-atmosphere,.wave,.sparkles,.vinyl{transition:filter 3.1s ease,opacity 3.1s ease,transform 3.1s ease}
+body.celebrate-common .wave{filter:blur(37px) brightness(1.1)}
+body.celebrate-uncommon .wave{filter:blur(26px) saturate(1.55) brightness(1.35);opacity:.7}
+body.celebrate-rare .wave{filter:blur(20px) hue-rotate(35deg) saturate(1.7) brightness(1.55);opacity:.8}
+body.celebrate-headliner .wave{filter:blur(15px) saturate(2) brightness(1.8);opacity:.94}
+body.celebrate-headliner .vinyl{filter:drop-shadow(0 0 40px #ffd768)}
+/* The effect layer itself never cuts out: each particle has a fade-out tail. */
+.celebration{z-index:8;isolation:isolate}
+.celebration:before,.celebration:after{content:'';position:absolute;inset:0;pointer-events:none;opacity:0}
+.effect-common:before{background:radial-gradient(circle at 50% 46%,#dce6ff3c,transparent 42%);animation:fx-ambient 2.8s ease-out both}
+.effect-uncommon:before{background:radial-gradient(ellipse at 50% 40%,#4dff8d55,transparent 55%);animation:fx-ambient 3.8s ease-out both}
+.effect-rare:before{background:radial-gradient(circle at 50% 47%,#9a63ffb0,transparent 5%,#4b1f9c44 30%,transparent 70%);animation:fx-ambient 5s ease-out both}
+.effect-rare:after{inset:50% auto auto 50%;width:30vmin;height:30vmin;border:3px solid #d9c1ff;border-radius:50%;box-shadow:0 0 70px #b489ff,0 0 100px #6f39fa;animation:fx-ring 4.5s cubic-bezier(.1,.55,.3,1) both}
+.effect-headliner:before{background:radial-gradient(circle at 50% 45%,#fff5ba 0%,#ffbd3e99 10%,#f5a32933 28%,transparent 65%);animation:fx-supernova 6.1s ease-out both}
+.effect-headliner:after{inset:50% auto auto 50%;width:30vmin;height:30vmin;border:7px solid #fff4b8;border-radius:50%;box-shadow:0 0 75px #ffdf67,0 0 130px #ffc246;animation:fx-ring 5.8s cubic-bezier(.1,.55,.3,1) both}
+.fx-piece{position:absolute;display:block;pointer-events:none;width:var(--size);height:var(--size);box-shadow:0 0 13px currentColor;animation-delay:var(--delay)!important;animation-duration:var(--life)!important;animation-fill-mode:both!important}
+.fx-common{border-radius:50%;animation:fx-spark ease-out}
+.fx-uncommon{border-radius:2px;height:calc(var(--size) * 1.6);animation:fx-confetti cubic-bezier(.18,.35,.32,1)}
+.fx-rare{border-radius:50%;box-shadow:0 0 17px 4px #bc8cff99;animation:fx-cosmic ease-out}
+.fx-headliner{border-radius:2px;box-shadow:0 0 15px 3px #ffd45b88;animation:fx-superburst cubic-bezier(.1,.55,.32,1)}
+@keyframes fx-spark{0%{opacity:0;transform:translate(0,0) scale(.2)}18%{opacity:.85}75%{opacity:.55}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.15)}}
+@keyframes fx-confetti{0%{opacity:0;transform:translate(0,0) rotate(0) scale(.6)}10%{opacity:1}68%{opacity:1}100%{opacity:0;transform:translate(var(--dx),var(--dy)) rotate(var(--turn)) scale(.8)}}
+@keyframes fx-cosmic{0%{opacity:0;transform:translate(0,0) scale(.1)}15%{opacity:1}52%{opacity:.95}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.05)}}
+@keyframes fx-superburst{0%{opacity:0;transform:translate(0,0) scale(.1) rotate(0)}10%{opacity:1}45%{opacity:1}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.15) rotate(var(--turn))}}
+@keyframes fx-ambient{0%{opacity:0}15%{opacity:1}45%{opacity:.75}100%{opacity:0}}
+@keyframes fx-supernova{0%{opacity:0;filter:brightness(.4)}12%{opacity:1;filter:brightness(1.9)}34%{opacity:.88;filter:brightness(1)}100%{opacity:0;filter:brightness(.5)}}
+@keyframes fx-ring{0%{opacity:0;transform:translate(-50%,-50%) scale(.05)}15%{opacity:1}55%{opacity:.65}100%{opacity:0;transform:translate(-50%,-50%) scale(7)}}
+/* Big +90 lives above the light effects and gracefully settles into the card. */
+.reveal-overlay{position:fixed;inset:0;z-index:11;pointer-events:none;display:grid;place-items:center;opacity:0}
+.reveal-active{animation:reveal-overlay 4.5s ease-in-out both}
+.reveal-halo{position:absolute;width:min(80vw,540px);aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,#ffec9a66,transparent 65%);filter:blur(28px);animation:reveal-halo 4.5s ease-out both}
+.reveal-content{display:flex;flex-direction:column;align-items:center;text-align:center;filter:drop-shadow(0 0 32px #ffce5e);animation:reveal-score 4.5s cubic-bezier(.18,.7,.2,1) both}
+.reveal-content span{font-size:clamp(20px,5vw,36px);letter-spacing:.25em;font-weight:900;color:#fff1ae}
+.reveal-content strong{font:900 clamp(95px,23vw,220px) 'Space Grotesk',sans-serif;line-height:1;color:#ffe073}
+.reveal-content small{font-weight:900;letter-spacing:.5em;color:white}
+@keyframes reveal-overlay{0%,8%{opacity:0}17%,58%{opacity:1}100%{opacity:0}}
+@keyframes reveal-halo{0%{transform:scale(.2);opacity:0}20%{transform:scale(1.15);opacity:1}100%{transform:scale(1.7);opacity:0}}
+@keyframes reveal-score{0%{transform:scale(2);opacity:0}20%{transform:scale(1);opacity:1}60%{transform:scale(1);opacity:1}100%{transform:scale(.32) translateY(150px);opacity:0}}
+@media(prefers-reduced-motion:reduce){.fx-piece,.celebration:before,.celebration:after,.reveal-overlay,.reveal-halo,.reveal-content{animation:none!important;display:none!important}.wave,.vinyl{transition:none!important}}
