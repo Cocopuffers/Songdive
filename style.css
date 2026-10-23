@@ -128,3 +128,5 @@ body.celebrate-rare .vinyl-fire:before{border-width:9px}
 
 /* SongDive 2.6: subtle inline correction, no timer interruption. */
 #feedback.good{color:#c0ff70;text-shadow:0 0 18px #8bff7033;}
+
+/* SongDive 3.0: keep the 2.5 vinyl and rarity effects intact. */
