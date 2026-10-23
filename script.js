@@ -42,9 +42,32 @@ function dateKey(){// UTC ensures everyone gets the same daily prompts on the sa
 return new Date().toISOString().slice(0,10);}
 function getDailyPrompts(){let seed=0;for(const c of dateKey())seed=(Math.imul(seed,31)+c.charCodeAt(0))>>>0;
 const pool=[...prompts];for(let i=pool.length-1;i>0;i--){seed=(Math.imul(seed,1664525)+1013904223)>>>0;const j=seed%(i+1);[pool[i],pool[j]]=[pool[j],pool[i]];}return pool.slice(0,ROUND_COUNT);}
-function normalize(s){return s.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/&/g,' and ').replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ');}
+function normalize(s){return String(s).normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/&/g,' and ').replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ');}
+// Exact title, title + artist, and common release suffixes are recognized without a correction.
+function songKeys(song){const title=normalize(song.title),artist=normalize(song.artist);
+  return [title,`${title} ${artist}`,`${title} by ${artist}`];}
 function findSong(input){const q=normalize(input);if(!q)return null;
-return songs.find(s=>normalize(s.title)===q||normalize(`${s.title} ${s.artist}`)===q||normalize(`${s.title} by ${s.artist}`)===q)||null;}
+  return songs.find(song=>songKeys(song).includes(q))||null;}
+function editDistance(a,b){const previous=Array.from({length:b.length+1},(_,i)=>i);
+  for(let i=1;i<=a.length;i++){let prior=previous[0];previous[0]=i;
+    for(let j=1;j<=b.length;j++){const saved=previous[j];previous[j]=Math.min(previous[j]+1,previous[j-1]+1,prior+(a[i-1]===b[j-1]?0:1));prior=saved;}}
+  return previous[b.length];}
+function findCorrection(input,prompt){const q=normalize(input);if(q.length<4)return null;
+  const eligible=songs.filter(song=>prompt.test(song));
+  const candidates=eligible.map(song=>{
+    const distances=songKeys(song).map(key=>editDistance(q,key));
+    return {song,distance:Math.min(...distances)};
+  }).sort((a,b)=>a.distance-b.distance);
+  if(!candidates.length)return null;
+  const best=candidates[0],runnerUp=candidates[1];
+  // A 75% similarity floor alone is too permissive for short titles.
+  const allowance=Math.min(3,Math.max(1,Math.floor(q.length*.2)));
+  if(best.distance>allowance || (runnerUp&&runnerUp.distance===best.distance))return null;
+  return best.song;
+}
+let pendingCorrection=null;
+function clearCorrection(){pendingCorrection=null;$('feedback').classList.remove('good');}
+function usedSong(song){return history.some(h=>h.songKey===normalize(`${song.title} ${song.artist}`));}
 function scoreFor(song,prompt){if(!song||!prompt.test(song))return {points:0,tier:'MISS'};
 // Stable DEMO ranking only. Not a claim about a song's real popularity.
 const eligible=songs.filter(prompt.test).sort((a,b)=>a.title.localeCompare(b.title));
@@ -60,13 +83,13 @@ function cancelCountdown(){
   const overlay=$('roundCountdown');overlay.classList.add('hidden');$('questionCard').classList.remove('question-arriving','question-ready');
 }
 function stopTimer(){if(timer!==null){clearInterval(timer);timer=null;}}
-function updateTimer(){const remaining=Math.max(0,Math.ceil((deadline-performance.now())/1000));$('timer').textContent=remaining;$('timerWrap').classList.toggle('danger',remaining<=5);if(remaining<=0&&!locked)finishRound(null,true);}
-function startGame(){cancelCountdown();clearCelebration();stopTimer();dailyPrompts=getDailyPrompts();roundIndex=0;totalScore=0;history=[];$('shareBtn').innerHTML='Share my score <span>↗</span>';startRound();}
+function updateTimer(){const remaining=Math.max(0,Math.ceil((deadline-performance.now())/1000));$('timer').textContent=remaining;$('timerWrap').classList.toggle('danger',remaining<=5);if(remaining<=0&&!locked)expireRound();}
+function startGame(){cancelCountdown();clearCelebration();stopTimer();dailyPrompts=getDailyPrompts();roundIndex=0;totalScore=0;history=[];clearCorrection();$('shareBtn').innerHTML='Share my score <span>↗</span>';startRound();}
 function startRound(){
   cancelCountdown();stopTimer();roundReady=false;locked=false;
   $('roundLabel').textContent=`ROUND ${roundIndex+1} / ${ROUND_COUNT}`;
   $('promptText').textContent=dailyPrompts[roundIndex].text;
-  $('songSearch').value='';$('songSearch').disabled=true;$('submitBtn').disabled=true;
+  $('songSearch').value='';clearCorrection();$('songSearch').disabled=true;$('submitBtn').disabled=true;
   $('feedback').textContent='';$('feedback').className='feedback';
   $('progressBar').style.width=`${roundIndex/ROUND_COUNT*100}%`;
   $('timer').textContent=ROUND_SECONDS;$('timerWrap').classList.remove('danger');
@@ -93,14 +116,45 @@ function startRound(){
   step();
 }
 function feedback(text){$('feedback').textContent=text;$('feedback').className='feedback';$('songSearch').select();playTone('wrong');}
-function tryGuess(){if(locked||!roundReady)return;if(performance.now()>=deadline){finishRound(null,true);return;}
-const input=$('songSearch').value.trim();if(!input){feedback('The mic is on! Type a song first.');return;}
-const song=findSong(input);if(!song){feedback("That song hasn't been sung yet! (At least not in our demo catalog.)");return;}
-if(!dailyPrompts[roundIndex].test(song)){feedback('Great song, wrong gig! Try again.');return;}
-finishRound(song,false);}
+function tryGuess(){
+  if(locked||!roundReady)return;
+  if(performance.now()>=deadline){expireRound();return;}
+  const input=$('songSearch').value.trim();
+  if(!input){feedback('The mic is on! Type a song first.');return;}
+  // A second Enter locks the suggestion, but the timer never pauses.
+  if(pendingCorrection && normalize(input)===normalize(pendingCorrection.title)){
+    const song=pendingCorrection;clearCorrection();
+    if(usedSong(song)){feedback('You already played that song! Try another.');return;}
+    finishRound(song,false);return;
+  }
+  clearCorrection();
+  const song=findSong(input);
+  if(song){
+    if(!dailyPrompts[roundIndex].test(song)){feedback('Great song, wrong gig! Try again.');return;}
+    if(usedSong(song)){feedback('That song is already in your setlist! Try another.');return;}
+    finishRound(song,false);return;
+  }
+  const suggestion=findCorrection(input,dailyPrompts[roundIndex]);
+  if(suggestion){
+    if(usedSong(suggestion)){feedback('You already used that song! Try another.');return;}
+    pendingCorrection=suggestion;$('songSearch').value=suggestion.title;
+    $('feedback').textContent='🎵 Was this the song caught in your head? Press Enter again to lock it in.';
+    $('feedback').className='feedback good';$('songSearch').focus({preventScroll:true});
+    $('songSearch').setSelectionRange(suggestion.title.length,suggestion.title.length);
+    return;
+  }
+  feedback("That song hasn't been sung yet! (At least not in our demo catalog.)");
+}
+function expireRound(){
+  if(locked)return;
+  // A valid suggestion already placed in the box counts when the clock expires.
+  const song=pendingCorrection && normalize($('songSearch').value)===normalize(pendingCorrection.title)
+    && !usedSong(pendingCorrection) ? pendingCorrection : null;
+  clearCorrection();finishRound(song,true);
+}
 function finishRound(song,expired){if(locked)return;locked=true;roundReady=false;stopTimer();const prompt=dailyPrompts[roundIndex];const {points,tier}=scoreFor(song,prompt);totalScore+=points;
-history.push({prompt:prompt.text,song:song?`${song.title} — ${song.artist}`:'No correct answer',points,tier});
-$('songSearch').disabled=true;$('submitBtn').disabled=true;$('resultIcon').textContent=points?'♫':'×';$('resultEyebrow').textContent=expired?"TIME'S UP":'ANSWER LOCKED';
+history.push({prompt:prompt.text,song:song?`${song.title} — ${song.artist}`:'No correct answer',songKey:song?normalize(`${song.title} ${song.artist}`):null,points,tier});
+clearCorrection();$('songSearch').disabled=true;$('submitBtn').disabled=true;$('resultIcon').textContent=points?'♫':'×';$('resultEyebrow').textContent=expired?(song?'SAVED AT THE BUZZER':"TIME'S UP"):'ANSWER LOCKED';
 $('resultTitle').textContent=song?song.title:"Time's up!";$('resultArtist').textContent=song?song.artist:'The clock won this round.';
 $('tierLabel').textContent=tier==='ULTRA RARE'?'HEADLINER · 90':tier;$('points').textContent=points;$('scoreCard').dataset.tier=tier;
 $('resultMessage').textContent=points?`${points} points! Nice pull from the record collection.`:'No points this time. The next track is yours.';
@@ -229,6 +283,7 @@ function celebrate(points){
   },duration-2000);
 }
 async function shareScore(){const rank=ranks.find(r=>totalScore<=r.max)||ranks.at(-1);const message=`🎵 SongDive Daily Seven\n${rank.name}\n${totalScore}/${MAX_SCORE} points\nhttps://cocopuffers.github.io/Songdive/`;try{if(navigator.share){await navigator.share({text:message});return;}await navigator.clipboard.writeText(message);$('shareBtn').textContent='Copied to clipboard!';}catch(e){if(e.name!=='AbortError')window.prompt('Copy your score:',message);}}
+$('songSearch').addEventListener('input',()=>{if(pendingCorrection){clearCorrection();$('feedback').textContent='';$('feedback').className='feedback';}});
 $('startBtn').addEventListener('click',startGame);$('guessForm').addEventListener('submit',e=>{e.preventDefault();tryGuess();});$('continueBtn').addEventListener('click',nextRound);$('restartBtn').addEventListener('click',startGame);$('shareBtn').addEventListener('click',shareScore);
 $('roundFilter').addEventListener('change',renderAnswers);$('answerSearch').addEventListener('input',renderAnswers);$('tierFilters').addEventListener('click',e=>{const button=e.target.closest('button[data-tier]');if(!button)return;filterTier=button.dataset.tier;updateFilterButtons();renderAnswers();});
 $('soundBtn').addEventListener('click',()=>{soundEnabled=!soundEnabled;$('soundBtn').textContent=soundEnabled?'♫ ON':'♫ OFF';$('soundBtn').setAttribute('aria-pressed',String(soundEnabled));if(soundEnabled){startMusic();playTone('win');}else stopMusic();});

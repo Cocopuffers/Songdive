@@ -125,3 +125,6 @@ body.celebrate-rare .vinyl-fire:before{border-width:9px}
 /* Make the records noticeable on narrow screens, without covering the game. */
 @media(max-width:600px){.vinyl{opacity:.42;width:220px;top:24%}.vinyl-left{left:-170px}.vinyl-right{right:-170px}.question-card{padding:18px}.round-countdown{min-height:125px}}
 @media(prefers-reduced-motion:reduce){.question-arriving,.vinyl-spark,.vinyl-fire:before{animation:none!important}.question-arriving{transform:none;opacity:1;filter:none}.vinyl-fire{opacity:0!important}}
+
+/* SongDive 2.6: subtle inline correction, no timer interruption. */
+#feedback.good{color:#c0ff70;text-shadow:0 0 18px #8bff7033;}
