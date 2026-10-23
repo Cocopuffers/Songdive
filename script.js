@@ -1,6 +1,6 @@
 'use strict';
-// SongDive 3.2: static-site curated catalog and editorial rarity. No streaming or player analytics.
-// SongDive 3.2 curated catalog. Rank is editorial ordering within artist, NOT streaming statistics.
+// SongDive 3.3: static-site curated catalog and editorial rarity. No streaming or player analytics.
+// SongDive 3.3 curated catalog. Rank is editorial ordering within artist, NOT streaming statistics.
 let songs = [];
 let titleIndex = new Map();
 let artistGroups = new Map();
@@ -20,7 +20,7 @@ function rebuildIndexes(){
 async function loadCatalog(){
   const status=$('catalogStatus');
   try{
-    const response=await fetch('catalog-expanded.json?v=3.2');
+    const response=await fetch('catalog-expanded.json?v=3.3');
     if(!response.ok)throw new Error(`HTTP ${response.status}`);
     const rows=await response.json();
     if(!Array.isArray(rows)||rows.length<1000)throw new Error('Catalog is missing records');
@@ -42,6 +42,13 @@ const titleRules = [
   ['Name a song with a place in its title.', /\b(california|alabama|africa|new york|america|american|paradise|london|tokyo|vegas|oklahoma|galway|georgia|carolina|texas|home|city|ocean)\b/i],
   ['Name a song with an animal in its title.', /\b(dog|tiger|bird|cat|horse|wolf|butterfly|sharks|doves)\b/i],
   ['Name a song with a day or time in its title.', /\b(mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?|day|days|night|nights|morning|mornings|evening|evenings|afternoon|midnight|noon|dawn|dusk|tonight|today|tomorrow|yesterday|time|hour|hours|minute|minutes|second|seconds|am|pm|january|february|march|april|may|june|july|august|september|october|november|december|spring|summer|autumn|winter)\b|\b\d{1,2}\s*(?::|\.)\s*\d{2}\b|\b\d{1,2}\s*(?:am|pm)\b|\b\d{1,2}\s+to\s+\d{1,2}\b/i],
+  ['Name a song with a season in its title.', /\b(spring|summer|autumn|fall|winter)\b/i],
+  ['Name a song with a family member in its title.', /\b(mother|mom|mama|father|dad|daddy|sister|brother|daughter|son|baby|grandma|grandpa)\b/i],
+  ['Name a song with a body part in its title.', /\b(heart|eyes?|hands?|arms?|legs?|head|shoulders?|knees?|feet|face|lips?|mouth|skin|bones?)\b/i],
+  ['Name a song with a space-related word in its title.', /\b(moon|sun|stars?|planet|mars|venus|jupiter|galaxy|universe|cosmos|saturn|space)\b/i],
+  ['Name a song with a food or drink in its title.', /\b(cake|candy|sugar|honey|coffee|tea|milk|water|wine|beer|lemonade|peaches|apple|cherry|strawberry|chocolate|ice cream)\b/i],
+  ['Name a song with a mode of transportation in its title.', /\b(car|cars|train|trains|plane|planes|airplane|bus|boat|ship|ships|taxi|bicycle|bike|truck|rocket)\b/i],
+  ['Name a song with a question mark in its title.', /\?/],
   ['Name a song with love in its title.', /\blove\b/i],
   ['Name a song with a weather word in its title.', /\b(rain|thunder|hurricane|sky|sun|sunflower|snow|storm|fire)\b/i],
   ['Name a song with a feeling in its title.', /\b(happy|happier|sad|sorry|bad|good|crazy|beautiful|lonely|fearless|jealousy|hate)\b/i]
@@ -49,12 +56,12 @@ const titleRules = [
 let prompts=[];
 function buildPrompts(){
  prompts=[
- ...titleRules.map(([text,regex])=>({text,test:s=>regex.test(s.title)})),
- ...['pop','hiphop','rnb','rock','country','latin'].map(genre=>({text:`Name a ${ {pop:'pop',hiphop:'rap or hip-hop',rnb:'R&B',rock:'rock',country:'country',latin:'Latin'}[genre] } song.`,test:s=>s.genre===genre})),
+ ...titleRules.map(([text,regex])=>({text,kind:'title',test:s=>regex.test(s.title)})),
+ ...['pop','hiphop','rnb','rock','country','latin'].map(genre=>({text:`Name a ${ {pop:'pop',hiphop:'rap or hip-hop',rnb:'R&B',rock:'rock',country:'country',latin:'Latin'}[genre] } song.`,kind:'genre',test:s=>s.genre===genre})),
  ...[...new Set(songs.map(s=>s.artist))].filter(artist=>
     (artistGroups.get(normalize(artist))||[]).length>=9)
     .map(artist=>({text:`Name a song by ${artist}.`,
-      test:s=>normalize(s.artist)===normalize(artist)||s.credits.some(c=>normalize(c)===normalize(artist))}))
+      kind:'artist',test:s=>normalize(s.artist)===normalize(artist)||s.credits.some(c=>normalize(c)===normalize(artist))}))
  ].filter(p=>songs.some(p.test));
 }
 const $=id=>document.getElementById(id);
@@ -72,9 +79,17 @@ const ranks=[
 function showScreen(id){['intro','game','result','final'].forEach(name=>$(name).classList.toggle('hidden',name!==id));}
 function dateKey(){// UTC ensures everyone gets the same daily prompts on the same UTC date.
 return new Date().toISOString().slice(0,10);}
-function getDailyPrompts(){let seed=0;for(const c of dateKey()+':'+sessionNumber)seed=(Math.imul(seed,31)+c.charCodeAt(0))>>>0;
-const pool=[...prompts];for(let i=pool.length-1;i>0;i--){seed=(Math.imul(seed,1664525)+1013904223)>>>0;const j=seed%(i+1);[pool[i],pool[j]]=[pool[j],pool[i]];}return pool.slice(0,ROUND_COUNT);}
-function normalize(s){return String(s).normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/&/g,' and ').replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ');}
+function getDailyPrompts(){
+ let seed=0;for(const c of dateKey()+':'+sessionNumber)seed=(Math.imul(seed,31)+c.charCodeAt(0))>>>0;
+ const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
+ const title=prompts.filter(p=>p.kind==='title').sort(()=>random()-.5);
+ const artist=prompts.filter(p=>p.kind==='artist').sort(()=>random()-.5);
+ const genre=prompts.filter(p=>p.kind==='genre').sort(()=>random()-.5);
+ const result=[];const plan=['title','artist','title','genre','artist','title','artist'];
+ for(const kind of plan){const bucket={title,artist,genre}[kind];if(bucket.length)result.push(bucket.pop());}
+ return result;
+}
+function normalize(s){return String(s).replace(/\b(\d{1,2})\s*(?:-|–|—|to)\s*(\d{1,2})\b/gi,'$1 to $2').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/&/g,' and ').replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ');}
 // Exact title, title + artist, and common release suffixes are recognized without a correction.
 function songKeys(song){const title=normalize(song.title),artist=normalize(song.artist);
   return [title,`${title} ${artist}`,`${title} by ${artist}`];}
@@ -214,7 +229,7 @@ const select=$('roundFilter');select.replaceChildren();dailyPrompts.forEach((p,i
 function updateFilterButtons(){document.querySelectorAll('[data-tier]').forEach(b=>{if(b.closest('#tierFilters'))b.classList.toggle('active',b.dataset.tier===filterTier);});}
 function renderAnswers(){const idx=Number($('roundFilter').value)||0,prompt=dailyPrompts[idx];if(!prompt)return;
 const query=normalize($('answerSearch').value);
-const matches=songs.filter(s=>prompt.test(s)).map(s=>({...s,score:scoreFor(s,prompt)}))
+const matches=songs.filter(s=>prompt.test(s) && !/\((?:[^)]*\b(?:remix|extended|radio edit|instrumental|karaoke|remaster|clean|dirty)\b[^)]*)\)/i.test(s.title)).map(s=>({...s,score:scoreFor(s,prompt)}))
   .filter(s=>(filterTier==='ALL'||s.score.tier===filterTier)&&(!query||normalize(`${s.title} ${s.artist}`).includes(query)));
 const groups=new Map();
 for(const s of matches){const artist=normalize(s.artist);if(!groups.has(artist))groups.set(artist,[]);groups.get(artist).push(s);}
@@ -341,7 +356,7 @@ function celebrate(points){
     },3000);
   },duration-2000);
 }
-async function shareScore(){const rank=ranks.find(r=>totalScore<=r.max)||ranks.at(-1);const message=`🎵 SongDive 3.2 Daily Seven\n${rank.name}\n${totalScore}/${MAX_SCORE} points\nhttps://cocopuffers.github.io/Songdive/`;try{if(navigator.share){await navigator.share({text:message});return;}await navigator.clipboard.writeText(message);$('shareBtn').textContent='Copied to clipboard!';}catch(e){if(e.name!=='AbortError')window.prompt('Copy your score:',message);}}
+async function shareScore(){const rank=ranks.find(r=>totalScore<=r.max)||ranks.at(-1);const message=`🎵 SongDive 3.3 Daily Seven\n${rank.name}\n${totalScore}/${MAX_SCORE} points\nhttps://cocopuffers.github.io/Songdive/`;try{if(navigator.share){await navigator.share({text:message});return;}await navigator.clipboard.writeText(message);$('shareBtn').textContent='Copied to clipboard!';}catch(e){if(e.name!=='AbortError')window.prompt('Copy your score:',message);}}
 $('songSearch').addEventListener('input',()=>{if(pendingCorrection){clearCorrection();$('feedback').textContent='';$('feedback').className='feedback';}});
 $('startBtn').addEventListener('click',startGame);$('guessForm').addEventListener('submit',e=>{e.preventDefault();tryGuess();});$('continueBtn').addEventListener('click',nextRound);$('restartBtn').addEventListener('click',startGame);$('shareBtn').addEventListener('click',shareScore);
 $('roundFilter').addEventListener('change',renderAnswers);$('answerSearch').addEventListener('input',renderAnswers);$('tierFilters').addEventListener('click',e=>{const button=e.target.closest('button[data-tier]');if(!button)return;filterTier=button.dataset.tier;updateFilterButtons();renderAnswers();});
