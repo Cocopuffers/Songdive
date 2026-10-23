@@ -1,6 +1,6 @@
 'use strict';
-// SongDive 3.0: static-site curated catalog and editorial rarity. No streaming or player analytics.
-// SongDive 3.0 curated catalog. Rank is editorial ordering within artist, NOT streaming statistics.
+// SongDive 3.2: static-site curated catalog and editorial rarity. No streaming or player analytics.
+// SongDive 3.2 curated catalog. Rank is editorial ordering within artist, NOT streaming statistics.
 let songs = [];
 let titleIndex = new Map();
 let artistGroups = new Map();
@@ -20,7 +20,7 @@ function rebuildIndexes(){
 async function loadCatalog(){
   const status=$('catalogStatus');
   try{
-    const response=await fetch('catalog-expanded.json?v=3.1');
+    const response=await fetch('catalog-expanded.json?v=3.2');
     if(!response.ok)throw new Error(`HTTP ${response.status}`);
     const rows=await response.json();
     if(!Array.isArray(rows)||rows.length<1000)throw new Error('Catalog is missing records');
@@ -29,7 +29,7 @@ async function loadCatalog(){
         rank:Number.isFinite(s.rank)?s.rank:50,credits:Array.isArray(s.credits)?s.credits:[]}));
     rebuildIndexes();
     catalogReady=true;
-    status.textContent=`${songs.length.toLocaleString()} song records loaded · Editorial rarity (provisional for imports)`;
+    status.textContent=`${songs.length.toLocaleString()} song records loaded · Provisional rarity for imported songs`;
     $('startBtn').disabled=false;
   }catch(error){
     status.textContent='Catalog could not load. Check that catalog-expanded.json was uploaded alongside the website files.';
@@ -41,7 +41,7 @@ const titleRules = [
   ['Name a song with a number in its title.', /\d/],
   ['Name a song with a place in its title.', /\b(california|alabama|africa|new york|america|american|paradise|london|tokyo|vegas|oklahoma|galway|georgia|carolina|texas|home|city|ocean)\b/i],
   ['Name a song with an animal in its title.', /\b(dog|tiger|bird|cat|horse|wolf|butterfly|sharks|doves)\b/i],
-  ['Name a song with a day or time in its title.', /\b(monday|friday|saturday|sunday|night|morning|midnight|today|tomorrow|yesterday|summer|september)\b/i],
+  ['Name a song with a day or time in its title.', /\b(mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?|day|days|night|nights|morning|mornings|evening|evenings|afternoon|midnight|noon|dawn|dusk|tonight|today|tomorrow|yesterday|time|hour|hours|minute|minutes|second|seconds|am|pm|january|february|march|april|may|june|july|august|september|october|november|december|spring|summer|autumn|winter)\b|\b\d{1,2}\s*(?::|\.)\s*\d{2}\b|\b\d{1,2}\s*(?:am|pm)\b|\b\d{1,2}\s+to\s+\d{1,2}\b/i],
   ['Name a song with love in its title.', /\blove\b/i],
   ['Name a song with a weather word in its title.', /\b(rain|thunder|hurricane|sky|sun|sunflower|snow|storm|fire)\b/i],
   ['Name a song with a feeling in its title.', /\b(happy|happier|sad|sorry|bad|good|crazy|beautiful|lonely|fearless|jealousy|hate)\b/i]
@@ -81,15 +81,17 @@ function songKeys(song){const title=normalize(song.title),artist=normalize(song.
 function findSong(input,prompt){const q=normalize(input);if(!q)return null;
  const matches=titleIndex.get(q)||[];
  const eligible=matches.filter(prompt.test);
- return eligible.length===1?eligible[0]:matches.length===1?matches[0]:null;
+ return eligible.length?eligible.sort((a,b)=>(a.rank||50)-(b.rank||50))[0]:null;
 }
 function editDistance(a,b){const previous=Array.from({length:b.length+1},(_,i)=>i);
   for(let i=1;i<=a.length;i++){let prior=previous[0];previous[0]=i;
     for(let j=1;j<=b.length;j++){const saved=previous[j];previous[j]=Math.min(previous[j]+1,previous[j-1]+1,prior+(a[i-1]===b[j-1]?0:1));prior=saved;}}
   return previous[b.length];}
 function findCorrection(input,prompt){const q=normalize(input);if(q.length<4)return null;
-  const eligible=songs.filter(song=>prompt.test(song));
-  const candidates=eligible.map(song=>{
+  const eligible=songs.filter(song=>prompt.test(song) &&
+    Math.abs(normalize(song.title).length-q.length)<=Math.max(3,Math.floor(q.length*.2)) &&
+    (normalize(song.title).startsWith(q.slice(0,2)) || normalize(song.title).split(' ').some(w=>w.startsWith(q.slice(0,3)))));
+  const candidates=eligible.slice(0,2500).map(song=>{
     const distances=songKeys(song).map(key=>editDistance(q,key));
     return {song,distance:Math.min(...distances)};
   }).sort((a,b)=>a.distance-b.distance);
@@ -211,10 +213,23 @@ const list=$('finalList');list.replaceChildren();history.forEach((h,i)=>{const r
 const select=$('roundFilter');select.replaceChildren();dailyPrompts.forEach((p,i)=>{const opt=document.createElement('option');opt.value=String(i);opt.textContent=`Round ${i+1}: ${p.text}`;select.append(opt);});select.value='0';filterTier='ALL';$('answerSearch').value='';updateFilterButtons();renderAnswers();showScreen('final');playTone('final');}
 function updateFilterButtons(){document.querySelectorAll('[data-tier]').forEach(b=>{if(b.closest('#tierFilters'))b.classList.toggle('active',b.dataset.tier===filterTier);});}
 function renderAnswers(){const idx=Number($('roundFilter').value)||0,prompt=dailyPrompts[idx];if(!prompt)return;
-const query=normalize($('answerSearch').value);const matches=songs.filter(s=>prompt.test(s)).map(s=>({...s,score:scoreFor(s,prompt)})).filter(s=>(filterTier==='ALL'||s.score.tier===filterTier)&&(!query||normalize(`${s.title} ${s.artist}`).includes(query))).sort((a,b)=>b.score.points-a.score.points||a.title.localeCompare(b.title));
-$('answerCount').textContent=`${matches.length} matching song${matches.length===1?'':'s'} in our expanded catalog · Showing up to 150 · Imported-song rarity is provisional, not streaming data.`;
+const query=normalize($('answerSearch').value);
+const matches=songs.filter(s=>prompt.test(s)).map(s=>({...s,score:scoreFor(s,prompt)}))
+  .filter(s=>(filterTier==='ALL'||s.score.tier===filterTier)&&(!query||normalize(`${s.title} ${s.artist}`).includes(query)));
+const groups=new Map();
+for(const s of matches){const artist=normalize(s.artist);if(!groups.has(artist))groups.set(artist,[]);groups.get(artist).push(s);}
+for(const group of groups.values())group.sort((a,b)=>a.title.localeCompare(b.title));
+const artists=[...groups.keys()].sort((a,b)=>a.localeCompare(b));
+const ordered=[];
+while(ordered.length<150 && artists.length){
+ for(let i=0;i<artists.length && ordered.length<150;){
+  const group=groups.get(artists[i]);ordered.push(group.shift());
+  if(!group.length)artists.splice(i,1);else i++;
+ }
+}
+$('answerCount').textContent=`${matches.length} matching song${matches.length===1?'':'s'} in our expanded catalog · Showing up to 150 across different artists · Imported-song rarity is provisional, not streaming data.`;
 const list=$('answerList');list.replaceChildren();if(!matches.length){const p=document.createElement('p');p.className='answer-count';p.textContent='No matches in this filter. Try another.';list.append(p);return;}
-for(const s of matches.slice(0,150)){const row=document.createElement('div');row.className='answer-row';const info=document.createElement('div');const title=document.createElement('strong');title.textContent=s.title;const artist=document.createElement('small');artist.textContent=`${s.artist} · ${s.genre.toUpperCase()}`;info.append(title,artist);const badge=document.createElement('span');badge.className='tier-chip';badge.dataset.tier=s.score.tier;badge.textContent=`${s.score.points} PTS`;row.append(info,badge);list.append(row);}}
+for(const s of ordered){const row=document.createElement('div');row.className='answer-row';const info=document.createElement('div');const title=document.createElement('strong');title.textContent=s.title;const artist=document.createElement('small');artist.textContent=`${s.artist} · ${s.genre.toUpperCase()}`;info.append(title,artist);const badge=document.createElement('span');badge.className='tier-chip';badge.dataset.tier=s.score.tier;badge.textContent=`${s.score.points} PTS`;row.append(info,badge);list.append(row);}}
 // All audio is synthesized locally with Web Audio: no licensed recordings or downloads.
 function ensureAudio(){const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return false;audioContext??=new AC();if(audioContext.state==='suspended')audioContext.resume();if(!masterGain){masterGain=audioContext.createGain();masterGain.gain.value=.55;masterGain.connect(audioContext.destination);}return true;}
 function synth(freq,when,duration=.2,volume=.06,type='sine',destination=null){if(!audioContext)return;const osc=audioContext.createOscillator(),env=audioContext.createGain();osc.type=type;osc.frequency.setValueAtTime(freq,when);env.gain.setValueAtTime(.0001,when);env.gain.exponentialRampToValueAtTime(Math.max(.0002,volume),when+.018);env.gain.exponentialRampToValueAtTime(.0001,when+duration);osc.connect(env).connect(destination||masterGain);osc.start(when);osc.stop(when+duration+.02);}
@@ -326,7 +341,7 @@ function celebrate(points){
     },3000);
   },duration-2000);
 }
-async function shareScore(){const rank=ranks.find(r=>totalScore<=r.max)||ranks.at(-1);const message=`🎵 SongDive 3.1 Daily Seven\n${rank.name}\n${totalScore}/${MAX_SCORE} points\nhttps://cocopuffers.github.io/Songdive/`;try{if(navigator.share){await navigator.share({text:message});return;}await navigator.clipboard.writeText(message);$('shareBtn').textContent='Copied to clipboard!';}catch(e){if(e.name!=='AbortError')window.prompt('Copy your score:',message);}}
+async function shareScore(){const rank=ranks.find(r=>totalScore<=r.max)||ranks.at(-1);const message=`🎵 SongDive 3.2 Daily Seven\n${rank.name}\n${totalScore}/${MAX_SCORE} points\nhttps://cocopuffers.github.io/Songdive/`;try{if(navigator.share){await navigator.share({text:message});return;}await navigator.clipboard.writeText(message);$('shareBtn').textContent='Copied to clipboard!';}catch(e){if(e.name!=='AbortError')window.prompt('Copy your score:',message);}}
 $('songSearch').addEventListener('input',()=>{if(pendingCorrection){clearCorrection();$('feedback').textContent='';$('feedback').className='feedback';}});
 $('startBtn').addEventListener('click',startGame);$('guessForm').addEventListener('submit',e=>{e.preventDefault();tryGuess();});$('continueBtn').addEventListener('click',nextRound);$('restartBtn').addEventListener('click',startGame);$('shareBtn').addEventListener('click',shareScore);
 $('roundFilter').addEventListener('change',renderAnswers);$('answerSearch').addEventListener('input',renderAnswers);$('tierFilters').addEventListener('click',e=>{const button=e.target.closest('button[data-tier]');if(!button)return;filterTier=button.dataset.tier;updateFilterButtons();renderAnswers();});
